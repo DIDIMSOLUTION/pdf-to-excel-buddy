@@ -171,7 +171,7 @@ const PdfToExcelConverter = () => {
             )}
           </div>
 
-          {/* JSON Upload */}
+          {/* JSON Input */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-foreground flex items-center gap-2">
               <FileJson className="w-4 h-4 text-primary" />
@@ -181,13 +181,16 @@ const PdfToExcelConverter = () => {
               <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                 <FileJson className="w-5 h-5 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{jsonFileName}</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {jsonFileName || "직접 입력"}
+                  </p>
                   <p className="text-xs text-muted-foreground">{jsonData.length}개 행</p>
                 </div>
                 <button
                   onClick={() => {
                     setJsonData(null);
                     setJsonFileName("");
+                    setJsonText("");
                     if (jsonInputRef.current) jsonInputRef.current.value = "";
                   }}
                   className="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground"
@@ -196,13 +199,42 @@ const PdfToExcelConverter = () => {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => jsonInputRef.current?.click()}
-                className="w-full p-6 border-2 border-dashed border-border rounded-xl hover:border-primary/50 hover:bg-[hsl(var(--drop-zone-hover))] transition-all flex flex-col items-center gap-2 text-muted-foreground"
-              >
-                <Upload className="w-6 h-6" />
-                <span className="text-sm font-medium">JSON 파일 업로드</span>
-              </button>
+              <div className="space-y-2">
+                <textarea
+                  className="w-full min-h-[120px] rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                  placeholder={'[\n  {"No":"1","계급":"경감","이름":"홍길동", ...},\n  {"No":"2","계급":"경위","이름":"김철수", ...}\n]'}
+                  value={jsonText}
+                  onChange={(e) => setJsonText(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    disabled={!jsonText.trim()}
+                    onClick={() => {
+                      try {
+                        const data = JSON.parse(jsonText);
+                        const arr = Array.isArray(data) ? data : [data];
+                        setJsonData(arr);
+                        toast.success(`JSON 파싱 완료 (${arr.length}개 행)`);
+                      } catch (err: any) {
+                        toast.error("유효한 JSON 형식이 아닙니다.");
+                      }
+                    }}
+                  >
+                    텍스트 적용
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => jsonInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-1" />
+                    파일 업로드
+                  </Button>
+                </div>
+              </div>
             )}
             <input
               ref={jsonInputRef}
