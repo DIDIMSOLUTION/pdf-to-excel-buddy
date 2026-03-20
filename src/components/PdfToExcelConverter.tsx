@@ -17,6 +17,7 @@ const PdfToExcelConverter = () => {
   const [columnHeaders, setColumnHeaders] = useState<string[]>([]);
   const [jsonData, setJsonData] = useState<any[] | null>(null);
   const [jsonFileName, setJsonFileName] = useState("");
+  const [jsonText, setJsonText] = useState("");
 
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
