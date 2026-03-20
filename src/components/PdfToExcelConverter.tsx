@@ -107,43 +107,6 @@ const PdfToExcelConverter = () => {
           </p>
         </div>
 
-        {/* Template Variables */}
-        <Card className="p-5 space-y-3">
-          <h2 className="text-sm font-bold text-foreground">헤더 변수 치환</h2>
-          <p className="text-xs text-muted-foreground">
-            Header XML 내 <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">{"{{변수명}}"}</code> 이 아래 값으로 대치됩니다.
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">경찰서</label>
-              <Input
-                value={경찰서}
-                onChange={(e) => set경찰서(e.target.value)}
-                placeholder="예: 서울강남"
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">품목</label>
-              <Input
-                value={품목}
-                onChange={(e) => set품목(e.target.value)}
-                placeholder="예: 동복"
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">연도차수</label>
-              <Input
-                value={연도차수}
-                onChange={(e) => set연도차수(e.target.value)}
-                placeholder="예: 2025년 2차"
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-        </Card>
-
         {/* XML Sections */}
         <Card className="p-5 space-y-4">
           <h2 className="text-sm font-bold text-foreground">서식 설정 (SpreadsheetML XML)</h2>
