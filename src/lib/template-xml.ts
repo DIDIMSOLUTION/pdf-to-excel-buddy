@@ -149,13 +149,13 @@ export const DEFAULT_HEADER_XML = `<Column ss:AutoFitWidth="0" ss:Width="41"/>
  <Cell ss:MergeAcross="9" ss:MergeDown="2" ss:StyleID="s72"><Data ss:Type="String">납품서</Data></Cell>
 </Row>
 <Row ss:Index="4" ss:AutoFitHeight="0" ss:Height="27">
- <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">경찰서 : </Data></Cell>
- <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">품목 : </Data></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">경찰서 : {{경찰서}}</Data></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">품목 : {{품목}}</Data></Cell>
  <Cell ss:StyleID="s74"></Cell>
  <Cell ss:StyleID="s74"></Cell>
  <Cell ss:StyleID="s74"></Cell>
  <Cell ss:StyleID="s74"></Cell>
- <Cell ss:MergeAcross="1" ss:StyleID="s75"><Data ss:Type="String">2025년 2차</Data></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s75"><Data ss:Type="String">{{연도차수}}</Data></Cell>
 </Row>
 <Row ss:AutoFitHeight="0" ss:Height="27">
  <Cell ss:StyleID="s80"><Data ss:Type="String">No</Data></Cell>
