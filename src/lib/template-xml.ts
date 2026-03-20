@@ -434,6 +434,38 @@ function writeRow(
   }
 }
 
+// ─── Template Variable Replacement ───────────────────────
+
+function replaceTemplateVars(xml: string, vars: Record<string, string>): string {
+  let result = xml;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(`{{${key}}}`, value);
+  }
+  return result;
+}
+
+// ─── Flatten Nested Array JSON ───────────────────────────
+
+function flattenJsonData(data: any[]): any[] {
+  const flat: any[] = [];
+  for (const item of data) {
+    if (Array.isArray(item)) {
+      // Sort rows by "No" within each group, keep summary at end
+      const rows = item.filter((e: any) => e.type === "row" || !e.type);
+      const others = item.filter((e: any) => e.type && e.type !== "row");
+      rows.sort((a: any, b: any) => {
+        const aNo = parseInt(a.No || "0", 10);
+        const bNo = parseInt(b.No || "0", 10);
+        return aNo - bNo;
+      });
+      flat.push(...rows, ...others);
+    } else {
+      flat.push(item);
+    }
+  }
+  return flat;
+}
+
 // ─── Build XLSX from Sections ────────────────────────────
 
 export function buildXlsxFromSections(params: {
@@ -443,15 +475,21 @@ export function buildXlsxFromSections(params: {
   summaryXml: string;
   footerXml: string;
   jsonData: any[];
+  templateVars?: Record<string, string>;
 }): XLSX.WorkBook {
-  const { stylesXml, headerXml, rowXml, summaryXml, footerXml, jsonData } = params;
+  const { stylesXml, rowXml, summaryXml, footerXml, jsonData, templateVars } = params;
+
+  // Apply template variable replacement to header
+  let headerXml = params.headerXml;
+  if (templateVars) {
+    headerXml = replaceTemplateVars(headerXml, templateVars);
+  }
 
   const headerSection = parseSectionXml(headerXml, stylesXml);
   const rowSection = parseSectionXml(rowXml, stylesXml);
   const summarySection = parseSectionXml(summaryXml, stylesXml);
   const footerSection = parseSectionXml(footerXml, stylesXml);
 
-  // Merge all styles
   const allStyles = new Map<string, ParsedStyle>([
     ...headerSection.styles,
     ...rowSection.styles,
@@ -459,20 +497,20 @@ export function buildXlsxFromSections(params: {
     ...footerSection.styles,
   ]);
 
-  // Column headers for key matching
   const columnHeaders = extractColumnHeaders(headerSection.rows);
-
   const rowTemplate = rowSection.rows[0];
   const summaryTemplate = summarySection.rows[0];
 
   if (!rowTemplate) throw new Error("Row 서식에 <Row> 요소가 없습니다.");
+
+  // Flatten nested arrays and sort by No
+  const flatData = flattenJsonData(jsonData);
 
   const wb = XLSX.utils.book_new();
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
   const rowHeights: { r: number; hpt: number }[] = [];
 
-  // Column widths
   const colWidthMap = new Map<number, number>();
   let colPos = 0;
   for (const col of headerSection.columns) {
@@ -483,7 +521,7 @@ export function buildXlsxFromSections(params: {
 
   let outRow = 0;
 
-  // 1) Header rows (preserve ss:Index gaps)
+  // 1) Header rows
   let currentRow = 0;
   for (const row of headerSection.rows) {
     if (row.index !== undefined) currentRow = row.index - 1;
@@ -494,8 +532,8 @@ export function buildXlsxFromSections(params: {
   }
   outRow = currentRow;
 
-  // 2) Data rows from JSON (type = "row" | "summary")
-  for (const entry of jsonData) {
+  // 2) Data rows
+  for (const entry of flatData) {
     const type = entry.type || "row";
 
     if (type === "row") {
@@ -504,15 +542,10 @@ export function buildXlsxFromSections(params: {
         const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
         const style = toXlsxStyle(allStyles.get(cell.styleId));
 
-        // Match JSON key to column header
         let val = "";
-        if (Array.isArray(entry)) {
-          val = String(entry[col] ?? "");
-        } else {
-          const colHeader = columnHeaders[col];
-          if (colHeader && colHeader in entry) {
-            val = String(entry[colHeader] ?? "");
-          }
+        const colHeader = columnHeaders[col];
+        if (colHeader && colHeader in entry) {
+          val = String(entry[colHeader] ?? "");
         }
 
         let cellType = "s";
@@ -537,7 +570,6 @@ export function buildXlsxFromSections(params: {
         const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
         const style = toXlsxStyle(allStyles.get(cell.styleId));
 
-        // For the merged label cell, use JSON "label" or "text" field
         let val = cell.value;
         if (cell.mergeAcross > 0) {
           val = entry.label || entry.text || cell.value;
@@ -563,7 +595,6 @@ export function buildXlsxFromSections(params: {
     outRow++;
   }
 
-  // Sheet properties
   const maxCol = 9;
   ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(outRow - 1, 0), c: maxCol } });
   ws["!merges"] = merges;
