@@ -46,37 +46,66 @@ const PdfToExcelConverter = () => {
   const [footerXml, setFooterXml] = useState(DEFAULT_FOOTER_XML);
   const [jsonText, setJsonText] = useState(DEFAULT_JSON);
   const [showStyles, setShowStyles] = useState(false);
+  const [autoDownloaded, setAutoDownloaded] = useState(false);
+
+  const generateFromJson = useCallback((json: string, fileName = "output") => {
+    const parsed = JSON.parse(json);
+    let jsonData: any[];
+    let templateVars: Record<string, string> = {};
+
+    if (parsed && !Array.isArray(parsed) && parsed.data) {
+      templateVars = parsed.vars || {};
+      jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+    } else {
+      jsonData = Array.isArray(parsed) ? parsed : [parsed];
+    }
+
+    const wb = buildXlsxFromSections({
+      stylesXml,
+      headerXml,
+      rowXml,
+      summaryXml,
+      footerXml,
+      jsonData,
+      templateVars,
+    });
+    downloadWorkbook(wb, fileName);
+  }, [stylesXml, headerXml, rowXml, summaryXml, footerXml]);
 
   const handleGenerate = () => {
     try {
-      const parsed = JSON.parse(jsonText);
-      let jsonData: any[];
-      let templateVars: Record<string, string> = {};
-
-      if (parsed && !Array.isArray(parsed) && parsed.data) {
-        // { vars: {...}, data: [[...]] } 형식
-        templateVars = parsed.vars || {};
-        jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
-      } else {
-        // 기존 배열 형식도 지원
-        jsonData = Array.isArray(parsed) ? parsed : [parsed];
-      }
-
-      const wb = buildXlsxFromSections({
-        stylesXml,
-        headerXml,
-        rowXml,
-        summaryXml,
-        footerXml,
-        jsonData,
-        templateVars,
-      });
-      downloadWorkbook(wb, "output");
+      generateFromJson(jsonText);
       toast.success("엑셀 파일이 다운로드되었습니다!");
     } catch (err: any) {
       toast.error(err.message || "생성 중 오류가 발생했습니다.");
     }
   };
+
+  // URL 파라미터로 자동 다운로드: ?json=<encodedJSON>&filename=<name>
+  useEffect(() => {
+    if (autoDownloaded) return;
+    const params = new URLSearchParams(window.location.search);
+    const jsonParam = params.get("json");
+    if (!jsonParam) return;
+
+    setAutoDownloaded(true);
+    try {
+      const decoded = decodeURIComponent(jsonParam);
+      const fileName = params.get("filename") || "output";
+      setJsonText(decoded);
+      // 약간의 딜레이 후 다운로드 (렌더링 완료 대기)
+      setTimeout(() => {
+        try {
+          generateFromJson(decoded, fileName);
+          toast.success("자동 다운로드 완료!");
+        } catch (err: any) {
+          toast.error("자동 생성 실패: " + (err.message || "오류"));
+        }
+      }, 500);
+    } catch (err: any) {
+      toast.error("URL 파라미터 파싱 실패: " + (err.message || "오류"));
+    }
+  }, [autoDownloaded, generateFromJson]);
 
   const handleReset = () => {
     setStylesXml(DEFAULT_STYLES_XML);
