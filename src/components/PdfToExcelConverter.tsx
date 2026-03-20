@@ -143,7 +143,7 @@ const PdfToExcelConverter = () => {
         <Card className="p-5 space-y-3">
           <h2 className="text-sm font-bold text-foreground">데이터 입력 (JSON)</h2>
           <p className="text-xs text-muted-foreground">
-            중첩 배열 지원: <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">[[row, row, summary], [row, summary]]</code> — 각 그룹 내 <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">No</code> 기준 자동 정렬
+            <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">{"{ \"vars\": {...}, \"data\": [[...]] }"}</code> 형식 — <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">vars</code>의 키가 Header XML 내 <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">{"{{키}}"}</code>를 대치합니다.
           </p>
           <textarea
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y leading-relaxed"
