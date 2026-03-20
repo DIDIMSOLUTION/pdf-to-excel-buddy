@@ -77,6 +77,7 @@ const PdfToExcelConverter = () => {
     setColumnHeaders([]);
     setJsonData(null);
     setJsonFileName("");
+    setJsonText("");
     if (xmlInputRef.current) xmlInputRef.current.value = "";
     if (jsonInputRef.current) jsonInputRef.current.value = "";
   };
