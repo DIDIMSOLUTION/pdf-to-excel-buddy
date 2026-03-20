@@ -1,11 +1,8 @@
 import XLSX from "xlsx-js-style";
 
-/**
- * Parse Microsoft Excel SpreadsheetML XML and convert to xlsx
- * Handles styles, merges, column widths, row heights
- */
-
 const SS = "urn:schemas-microsoft-com:office:spreadsheet";
+
+// ─── Interfaces ───────────────────────────────────────────
 
 interface ParsedStyle {
   font?: { name?: string; size?: number; bold?: boolean; color?: string };
@@ -16,34 +13,211 @@ interface ParsedStyle {
 
 interface ParsedCell {
   value: string;
-  type: string; // String, Number, DateTime
+  type: string;
   styleId: string;
   mergeAcross: number;
   mergeDown: number;
-  colIndex?: number; // ss:Index (1-based)
+  colIndex?: number;
 }
 
 interface ParsedRow {
   cells: ParsedCell[];
   height?: number;
-  index?: number; // ss:Index (1-based)
+  index?: number;
 }
 
-interface ParsedSheet {
-  name: string;
-  columns: { width: number; index?: number }[];
-  rows: ParsedRow[];
-  defaultColWidth: number;
-  defaultRowHeight: number;
-}
+// ─── Default Styles XML (from sample template) ───────────
 
-export interface TemplateInfo {
-  sheets: ParsedSheet[];
-  styles: Map<string, ParsedStyle>;
-  dataRowIndices: number[]; // which rows are "data rows" (0-based in rows array)
-  headerRowCount: number;
-  xmlRaw: string;
-}
+export const DEFAULT_STYLES_XML = `
+<Style ss:ID="Default" ss:Name="Normal">
+ <Alignment ss:Vertical="Center"/>
+ <Borders/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000"/>
+ <Interior/><NumberFormat/><Protection/>
+</Style>
+<Style ss:ID="m34466542392">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders><NumberFormat/>
+</Style>
+<Style ss:ID="s72">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="20" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s73">
+ <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s74">
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s75">
+ <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s80">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders><NumberFormat/>
+</Style>
+<Style ss:ID="s81">
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders><NumberFormat/>
+</Style>
+<Style ss:ID="s82">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <NumberFormat ss:Format="yyyy\\-mm\\-dd;@"/>
+</Style>
+<Style ss:ID="s94">
+ <Alignment ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+</Style>
+<Style ss:ID="s95">
+ <Alignment ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+</Style>
+<Style ss:ID="s96">
+ <Alignment ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+</Style>
+<Style ss:ID="s107">
+ <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+</Style>
+<Style ss:ID="s109">
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+</Style>
+<Style ss:ID="s111">
+ <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+</Style>`.trim();
+
+// ─── Default section XML ──────────────────────────────────
+
+export const DEFAULT_HEADER_XML = `<Column ss:AutoFitWidth="0" ss:Width="41"/>
+<Column ss:AutoFitWidth="0" ss:Width="107"/>
+<Column ss:Index="5" ss:AutoFitWidth="0" ss:Width="43"/>
+<Column ss:AutoFitWidth="0" ss:Width="59"/>
+<Column ss:AutoFitWidth="0" ss:Width="86"/>
+<Column ss:Index="9" ss:AutoFitWidth="0" ss:Width="99"/>
+<Column ss:AutoFitWidth="0" ss:Width="63"/>
+<Row>
+ <Cell ss:MergeAcross="9" ss:MergeDown="2" ss:StyleID="s72"><Data ss:Type="String">납품서</Data></Cell>
+</Row>
+<Row ss:Index="4" ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">경찰서 : </Data></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">품목 : </Data></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s75"><Data ss:Type="String">2025년 2차</Data></Cell>
+</Row>
+<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:StyleID="s80"><Data ss:Type="String">No</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">부서</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">이름</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">계급</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">성별</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">수량</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">구분</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">스펙</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">출고일</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">비고</Data></Cell>
+</Row>
+<Row ss:AutoFitHeight="0" ss:Height="4">
+ <Cell ss:MergeAcross="9" ss:StyleID="m34466542392"></Cell>
+</Row>`.trim();
+
+export const DEFAULT_ROW_XML = `<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:StyleID="s80"><Data ss:Type="Number">1</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">부서</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">이름</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">계급</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">남</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="Number">1</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">구분</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">스펙</Data></Cell>
+ <Cell ss:StyleID="s82"><Data ss:Type="DateTime">2025-11-28T00:00:00.000</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">비고</Data></Cell>
+</Row>`.trim();
+
+export const DEFAULT_SUMMARY_XML = `<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:MergeAcross="5" ss:StyleID="s107"><Data ss:Type="String">(부서계) : 1</Data></Cell>
+ <Cell ss:StyleID="s95"></Cell>
+ <Cell ss:StyleID="s95"></Cell>
+ <Cell ss:StyleID="s96"></Cell>
+ <Cell ss:StyleID="s94"></Cell>
+</Row>`.trim();
+
+export const DEFAULT_FOOTER_XML = `<Row ss:AutoFitHeight="0" ss:Height="12">
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+</Row>
+<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:MergeAcross="5" ss:StyleID="s111"><Data ss:Type="String">경찰서계 : 2</Data></Cell>
+</Row>`.trim();
+
+export const DEFAULT_JSON = `[
+  {"type":"row","No":"1","부서":"청문-감찰","이름":"서문륜","계급":"경감","성별":"남","수량":"1","구분":"","스펙":"무","출고일":"","비고":""},
+  {"type":"summary","label":"(부서계) : 1"},
+  {"type":"row","No":"2","부서":"생안-교통","이름":"황정근","계급":"경감","성별":"남","수량":"1","구분":"","스펙":"무","출고일":"","비고":""},
+  {"type":"summary","label":"(부서계) : 1"}
+]`;
+
+// ─── Utility Functions ────────────────────────────────────
 
 function getAttr(el: Element, ns: string, name: string): string | null {
   return el.getAttributeNS(ns, name) || el.getAttribute(`ss:${name}`) || null;
@@ -52,26 +226,19 @@ function getAttr(el: Element, ns: string, name: string): string | null {
 function parseStyles(doc: Document): Map<string, ParsedStyle> {
   const map = new Map<string, ParsedStyle>();
   const styleEls = doc.getElementsByTagName("Style");
-
   for (let i = 0; i < styleEls.length; i++) {
     const el = styleEls[i];
     const id = getAttr(el, SS, "ID") || "";
     const style: ParsedStyle = {};
-
-    // Font
     const fontEl = el.getElementsByTagName("Font")[0];
     if (fontEl) {
       style.font = {
         name: getAttr(fontEl, SS, "FontName") || undefined,
-        size: fontEl.getAttributeNS(SS, "Size")
-          ? parseFloat(fontEl.getAttributeNS(SS, "Size")!)
-          : (fontEl.getAttribute("ss:Size") ? parseFloat(fontEl.getAttribute("ss:Size")!) : undefined),
+        size: getAttr(fontEl, SS, "Size") ? parseFloat(getAttr(fontEl, SS, "Size")!) : undefined,
         bold: getAttr(fontEl, SS, "Bold") === "1",
         color: getAttr(fontEl, SS, "Color") || undefined,
       };
     }
-
-    // Alignment
     const alignEl = el.getElementsByTagName("Alignment")[0];
     if (alignEl) {
       style.alignment = {
@@ -79,8 +246,6 @@ function parseStyles(doc: Document): Map<string, ParsedStyle> {
         vertical: getAttr(alignEl, SS, "Vertical") || undefined,
       };
     }
-
-    // Borders
     const bordersEl = el.getElementsByTagName("Borders")[0];
     if (bordersEl) {
       const borderEls = bordersEl.getElementsByTagName("Border");
@@ -94,45 +259,81 @@ function parseStyles(doc: Document): Map<string, ParsedStyle> {
       }
       style.borders = borders;
     }
-
-    // NumberFormat
     const nfEl = el.getElementsByTagName("NumberFormat")[0];
     if (nfEl) {
       style.numberFormat = getAttr(nfEl, SS, "Format") || undefined;
     }
-
     map.set(id, style);
   }
-
   return map;
 }
 
-function parseSheet(wsEl: Element): ParsedSheet {
-  const name = getAttr(wsEl, SS, "Name") || "Sheet1";
-  const tableEl = wsEl.getElementsByTagName("Table")[0];
-
-  const defaultColWidth = parseFloat(getAttr(tableEl, SS, "DefaultColumnWidth") || "75");
-  const defaultRowHeight = parseFloat(getAttr(tableEl, SS, "DefaultRowHeight") || "18");
-
-  // Columns
-  const columns: { width: number; index?: number }[] = [];
-  const colEls = tableEl.getElementsByTagName("Column");
-  for (let i = 0; i < colEls.length; i++) {
-    const el = colEls[i];
-    const idx = getAttr(el, SS, "Index");
-    const w = parseFloat(getAttr(el, SS, "Width") || String(defaultColWidth));
-    columns.push({ width: w, index: idx ? parseInt(idx) : undefined });
+function toXlsxStyle(style: ParsedStyle | undefined): any {
+  if (!style) return {};
+  const s: any = {};
+  if (style.font) {
+    s.font = {
+      name: style.font.name || "맑은 고딕",
+      sz: style.font.size || 12,
+      bold: style.font.bold || false,
+    };
+    if (style.font.color) s.font.color = { rgb: style.font.color.replace("#", "") };
   }
+  if (style.alignment) {
+    s.alignment = {
+      horizontal: style.alignment.horizontal?.toLowerCase() || "left",
+      vertical: style.alignment.vertical?.toLowerCase() || "center",
+      wrapText: true,
+    };
+  }
+  if (style.borders) {
+    const thin = { style: "thin", color: { rgb: "000000" } };
+    s.border = {};
+    if (style.borders.top) s.border.top = thin;
+    if (style.borders.bottom) s.border.bottom = thin;
+    if (style.borders.left) s.border.left = thin;
+    if (style.borders.right) s.border.right = thin;
+  }
+  if (style.numberFormat) {
+    s.numFmt = style.numberFormat;
+  }
+  return s;
+}
 
-  // Rows
+function resolveCellPositions(cells: ParsedCell[]): { cell: ParsedCell; col: number }[] {
+  const result: { cell: ParsedCell; col: number }[] = [];
+  let currentCol = 0;
+  for (const cell of cells) {
+    if (cell.colIndex !== undefined) currentCol = cell.colIndex - 1;
+    result.push({ cell, col: currentCol });
+    currentCol += 1 + cell.mergeAcross;
+  }
+  return result;
+}
+
+// ─── Section Parsing ──────────────────────────────────────
+
+function wrapInWorkbook(stylesXml: string, tableContent: string): string {
+  return `<?xml version="1.0"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:x="urn:schemas-microsoft-com:office:excel">
+ <Styles>${stylesXml}</Styles>
+ <Worksheet ss:Name="Sheet1">
+  <Table>${tableContent}</Table>
+ </Worksheet>
+</Workbook>`;
+}
+
+function parseRowElements(tableEl: Element): ParsedRow[] {
   const rows: ParsedRow[] = [];
-  const rowEls = tableEl.getElementsByTagName("Row");
-  for (let i = 0; i < rowEls.length; i++) {
-    const rowEl = rowEls[i];
+  // Only get direct child Row elements of this Table
+  for (let i = 0; i < tableEl.children.length; i++) {
+    const rowEl = tableEl.children[i];
+    if (rowEl.tagName !== "Row") continue;
     const rowIdx = getAttr(rowEl, SS, "Index");
     const height = getAttr(rowEl, SS, "Height");
     const cells: ParsedCell[] = [];
-
     const cellEls = rowEl.getElementsByTagName("Cell");
     for (let c = 0; c < cellEls.length; c++) {
       const cellEl = cellEls[c];
@@ -143,309 +344,61 @@ function parseSheet(wsEl: Element): ParsedSheet {
       const mergeAcross = parseInt(getAttr(cellEl, SS, "MergeAcross") || "0");
       const mergeDown = parseInt(getAttr(cellEl, SS, "MergeDown") || "0");
       const colIdx = getAttr(cellEl, SS, "Index");
-
-      cells.push({
-        value,
-        type,
-        styleId,
-        mergeAcross,
-        mergeDown,
-        colIndex: colIdx ? parseInt(colIdx) : undefined,
-      });
+      cells.push({ value, type, styleId, mergeAcross, mergeDown, colIndex: colIdx ? parseInt(colIdx) : undefined });
     }
-
-    rows.push({
-      cells,
-      height: height ? parseFloat(height) : undefined,
-      index: rowIdx ? parseInt(rowIdx) : undefined,
-    });
+    rows.push({ cells, height: height ? parseFloat(height) : undefined, index: rowIdx ? parseInt(rowIdx) : undefined });
   }
-
-  return { name, columns, rows, defaultColWidth, defaultRowHeight };
+  return rows;
 }
 
-export function parseSpreadsheetML(xmlStr: string): TemplateInfo {
+function parseColumnElements(tableEl: Element): { width: number; index?: number }[] {
+  const columns: { width: number; index?: number }[] = [];
+  const colEls = tableEl.getElementsByTagName("Column");
+  for (let i = 0; i < colEls.length; i++) {
+    const el = colEls[i];
+    const idx = getAttr(el, SS, "Index");
+    const w = parseFloat(getAttr(el, SS, "Width") || "75");
+    columns.push({ width: w, index: idx ? parseInt(idx) : undefined });
+  }
+  return columns;
+}
+
+export function parseSectionXml(sectionXml: string, stylesXml: string): {
+  rows: ParsedRow[];
+  columns: { width: number; index?: number }[];
+  styles: Map<string, ParsedStyle>;
+} {
+  const xml = wrapInWorkbook(stylesXml, sectionXml);
   const parser = new DOMParser();
-  const doc = parser.parseFromString(xmlStr, "text/xml");
-
-  const parseError = doc.querySelector("parsererror");
-  if (parseError) {
-    throw new Error("XML 파싱 오류: " + parseError.textContent);
-  }
-
+  const doc = parser.parseFromString(xml, "text/xml");
+  const err = doc.querySelector("parsererror");
+  if (err) throw new Error("XML 파싱 오류: " + err.textContent?.slice(0, 100));
   const styles = parseStyles(doc);
-  const wsEls = doc.getElementsByTagName("Worksheet");
-  const sheets: ParsedSheet[] = [];
-
-  for (let i = 0; i < wsEls.length; i++) {
-    sheets.push(parseSheet(wsEls[i]));
-  }
-
-  if (sheets.length === 0) throw new Error("시트를 찾을 수 없습니다.");
-
-  // Detect header vs data rows
-  // Strategy: find separator row (very short height + wide merge) as the boundary
-  // Everything up to and including the separator is header; after that, data rows
-  const dataRowIndices: number[] = [];
-  let headerRowCount = 0;
-  const sheet = sheets[0];
-  const resolvedRows = resolveRowPositions(sheet.rows);
-
-  // Find separator row: short height (<= 6px) with a wide merge
-  let separatorIdx = -1;
-  for (let i = 0; i < resolvedRows.length; i++) {
-    const row = sheet.rows[i];
-    const isShortRow = row.height !== undefined && row.height <= 6;
-    const hasWideMerge = row.cells.some((c) => c.mergeAcross >= 5);
-    if (isShortRow && hasWideMerge) {
-      separatorIdx = i;
-      break;
-    }
-  }
-
-  // If separator found, header = everything up to and including it
-  // Otherwise, fall back to heuristic
-  if (separatorIdx >= 0) {
-    headerRowCount = separatorIdx + 1; // include separator in header
-  }
-
-  for (let r = (separatorIdx >= 0 ? separatorIdx + 1 : 0); r < sheet.rows.length; r++) {
-    const row = sheet.rows[r];
-    const hasManyBorderedCells = row.cells.filter((c) => {
-      const s = styles.get(c.styleId);
-      return s?.borders && (s.borders.top || s.borders.bottom || s.borders.left || s.borders.right);
-    }).length;
-
-    const hasWideMerge = row.cells.some((c) => c.mergeAcross >= 5);
-    const isSingleCellMerged = row.cells.length <= 2 && hasWideMerge;
-
-    // Data row: many bordered cells, no wide merges, has actual data
-    if (hasManyBorderedCells >= 5 && !isSingleCellMerged && row.cells.some((c) => c.value)) {
-      dataRowIndices.push(r);
-    }
-
-    if (separatorIdx < 0 && dataRowIndices.length === 0) {
-      headerRowCount = r + 1;
-    }
-  }
-
-  return { sheets, styles, dataRowIndices, headerRowCount, xmlRaw: xmlStr };
+  const tableEl = doc.getElementsByTagName("Table")[0];
+  const rows = parseRowElements(tableEl);
+  const columns = parseColumnElements(tableEl);
+  return { rows, columns, styles };
 }
 
-function toXlsxStyle(style: ParsedStyle | undefined): any {
-  if (!style) return {};
+// ─── Extract Column Headers ──────────────────────────────
 
-  const s: any = {};
-
-  if (style.font) {
-    s.font = {
-      name: style.font.name || "맑은 고딕",
-      sz: style.font.size || 12,
-      bold: style.font.bold || false,
-    };
-    if (style.font.color) s.font.color = { rgb: style.font.color.replace("#", "") };
-  }
-
-  if (style.alignment) {
-    s.alignment = {
-      horizontal: style.alignment.horizontal?.toLowerCase() || "left",
-      vertical: style.alignment.vertical?.toLowerCase() || "center",
-      wrapText: true,
-    };
-  }
-
-  if (style.borders) {
-    const thin = { style: "thin", color: { rgb: "000000" } };
-    s.border = {};
-    if (style.borders.top) s.border.top = thin;
-    if (style.borders.bottom) s.border.bottom = thin;
-    if (style.borders.left) s.border.left = thin;
-    if (style.borders.right) s.border.right = thin;
-  }
-
-  if (style.numberFormat) {
-    s.numFmt = style.numberFormat;
-  }
-
-  return s;
-}
-
-/**
- * Resolve actual column positions for cells considering ss:Index gaps
- */
-function resolveCellPositions(cells: ParsedCell[]): { cell: ParsedCell; col: number }[] {
-  const result: { cell: ParsedCell; col: number }[] = [];
-  let currentCol = 0;
-
-  for (const cell of cells) {
-    if (cell.colIndex !== undefined) {
-      currentCol = cell.colIndex - 1; // 1-based → 0-based
-    }
-    result.push({ cell, col: currentCol });
-    currentCol += 1 + cell.mergeAcross;
-  }
-
-  return result;
-}
-
-/**
- * Resolve actual row positions considering ss:Index gaps
- */
-function resolveRowPositions(rows: ParsedRow[]): { row: ParsedRow; rowIdx: number }[] {
-  const result: { row: ParsedRow; rowIdx: number }[] = [];
-  let currentRow = 0;
-
-  for (const row of rows) {
-    if (row.index !== undefined) {
-      currentRow = row.index - 1; // 1-based → 0-based
-    }
-    result.push({ row, rowIdx: currentRow });
-    currentRow++;
-  }
-
-  return result;
-}
-
-export function buildXlsxFromTemplate(
-  template: TemplateInfo,
-  jsonData: any[]
-): XLSX.WorkBook {
-  const wb = XLSX.utils.book_new();
-
-  for (const sheet of template.sheets) {
-    const ws: XLSX.WorkSheet = {};
-    const merges: XLSX.Range[] = [];
-
-    // Resolve column widths
-    const totalCols = 10; // from the template
-    const colWidthMap = new Map<number, number>();
-    let colPos = 0;
-    for (const col of sheet.columns) {
-      if (col.index !== undefined) colPos = col.index - 1;
-      colWidthMap.set(colPos, col.width);
-      colPos++;
-    }
-
-    // Find the data row template (first data row)
-    const dataRowTemplate = template.dataRowIndices.length > 0
-      ? sheet.rows[template.dataRowIndices[0]]
-      : null;
-
-    // Find subtotal row (row after first data row, typically has wide merge)
-    const subtotalRowIdx = template.dataRowIndices.length > 0
-      ? template.dataRowIndices[0] + 1
-      : -1;
-    const subtotalRow = subtotalRowIdx >= 0 && subtotalRowIdx < sheet.rows.length
-      ? sheet.rows[subtotalRowIdx]
-      : null;
-
-    // Build rows: header rows + JSON data rows + footer
-    let outRow = 0;
-    const rowHeights: { r: number; hpt: number }[] = [];
-
-    // Write header rows (before data)
-    const resolvedRows = resolveRowPositions(sheet.rows);
-
-    for (let i = 0; i < template.headerRowCount && i < resolvedRows.length; i++) {
-      const { row, rowIdx } = resolvedRows[i];
-      // Use the actual row index for gaps
-      outRow = rowIdx;
-      writeRow(ws, merges, outRow, row, template.styles);
-      if (row.height) rowHeights.push({ r: outRow, hpt: row.height });
-      outRow++;
-    }
-
-    // Build column header → col index mapping for key-based matching
-    const headers = getColumnHeaders(template);
-    const headerColMap = new Map<string, number>(); // header name → col index
-    headers.forEach((h, i) => { if (h) headerColMap.set(h, i); });
-
-    // Write data rows from JSON
-    if (dataRowTemplate && jsonData.length > 0) {
-      for (let d = 0; d < jsonData.length; d++) {
-        const entry = jsonData[d];
-        const cells = resolveCellPositions(dataRowTemplate.cells);
-
-        for (const { cell, col } of cells) {
-          const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
-
-          // Match by column header name if entry is an object
-          let jsonVal: any = undefined;
-          if (Array.isArray(entry)) {
-            jsonVal = entry[col];
-          } else if (typeof entry === "object" && entry !== null) {
-            const colHeader = headers[col];
-            if (colHeader && colHeader in entry) {
-              jsonVal = entry[colHeader];
-            }
-          }
-          const val = jsonVal !== undefined && jsonVal !== null ? String(jsonVal) : "";
-
-          const style = toXlsxStyle(template.styles.get(cell.styleId));
-
-          // Determine cell type
-          let cellType = "s";
-          let cellVal: any = val;
-          if (cell.type === "Number" || (!isNaN(Number(val)) && val !== "")) {
-            cellType = "n";
-            cellVal = Number(val);
-          }
-
-          ws[ref] = { t: cellType, v: cellVal, s: style };
-
-          if (cell.mergeAcross > 0 || cell.mergeDown > 0) {
-            merges.push({
-              s: { r: outRow, c: col },
-              e: { r: outRow + cell.mergeDown, c: col + cell.mergeAcross },
-            });
-          }
-        }
-
-        if (dataRowTemplate.height) rowHeights.push({ r: outRow, hpt: dataRowTemplate.height });
-        outRow++;
+export function extractColumnHeaders(rows: ParsedRow[]): string[] {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i];
+    const cells = resolveCellPositions(row.cells);
+    const labels = cells.filter((c) => c.cell.value && c.cell.mergeAcross === 0);
+    if (labels.length >= 3) {
+      const headers: string[] = [];
+      for (const { cell, col } of cells) {
+        headers[col] = cell.value;
       }
+      return headers;
     }
-
-    // Write remaining rows (footer/summary rows after data)
-    const footerStart = template.dataRowIndices.length > 0
-      ? template.dataRowIndices[template.dataRowIndices.length - 1] + 1
-      : template.headerRowCount;
-
-    // Skip subtotal rows that were interspersed with data
-    for (let i = footerStart; i < sheet.rows.length; i++) {
-      // Skip rows that look like subtotals between data rows
-      const isSubtotalBetweenData = template.dataRowIndices.includes(i - 1) &&
-        sheet.rows[i]?.cells.some((c) => c.mergeAcross >= 5);
-
-      if (isSubtotalBetweenData && i < sheet.rows.length - 2) continue;
-
-      const row = sheet.rows[i];
-      writeRow(ws, merges, outRow, row, template.styles);
-      if (row.height) rowHeights.push({ r: outRow, hpt: row.height });
-      outRow++;
-    }
-
-    // Set sheet properties
-    const maxCol = Math.max(totalCols - 1, 9);
-    ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: outRow - 1, c: maxCol } });
-
-    ws["!merges"] = merges;
-
-    ws["!cols"] = Array.from({ length: maxCol + 1 }, (_, i) => ({
-      wch: Math.round((colWidthMap.get(i) || sheet.defaultColWidth) / 7),
-    }));
-
-    ws["!rows"] = [];
-    for (const { r, hpt } of rowHeights) {
-      if (!ws["!rows"]![r]) ws["!rows"]![r] = {};
-      ws["!rows"]![r].hpt = hpt;
-    }
-
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name.slice(0, 31));
   }
-
-  return wb;
+  return [];
 }
+
+// ─── Write Row to Worksheet ──────────────────────────────
 
 function writeRow(
   ws: XLSX.WorkSheet,
@@ -455,25 +408,19 @@ function writeRow(
   styles: Map<string, ParsedStyle>
 ) {
   const cells = resolveCellPositions(row.cells);
-
   for (const { cell, col } of cells) {
     const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
     const style = toXlsxStyle(styles.get(cell.styleId));
-
     let cellType = "s";
     let cellVal: any = cell.value;
-
     if (cell.type === "Number" && cell.value !== "") {
       cellType = "n";
       cellVal = Number(cell.value);
     } else if (cell.type === "DateTime" && cell.value) {
-      // Convert DateTime to date string
       cellType = "s";
       cellVal = cell.value.split("T")[0];
     }
-
     ws[ref] = { t: cellType, v: cellVal, s: style };
-
     if (cell.mergeAcross > 0 || cell.mergeDown > 0) {
       merges.push({
         s: { r: outRow, c: col },
@@ -483,25 +430,148 @@ function writeRow(
   }
 }
 
-/**
- * Extracts column headers from the template for JSON field reference
- */
-export function getColumnHeaders(template: TemplateInfo): string[] {
-  const sheet = template.sheets[0];
-  if (!sheet) return [];
+// ─── Build XLSX from Sections ────────────────────────────
 
-  // Find the header row (usually last row before data, with column labels)
-  for (let i = template.headerRowCount - 1; i >= 0; i--) {
-    const row = sheet.rows[i];
-    const cells = resolveCellPositions(row.cells);
-    const hasMultipleLabels = cells.filter((c) => c.cell.value && c.cell.mergeAcross === 0).length >= 3;
-    if (hasMultipleLabels) {
-      const headers: string[] = [];
-      for (const { cell, col } of cells) {
-        headers[col] = cell.value;
-      }
-      return headers;
-    }
+export function buildXlsxFromSections(params: {
+  stylesXml: string;
+  headerXml: string;
+  rowXml: string;
+  summaryXml: string;
+  footerXml: string;
+  jsonData: any[];
+}): XLSX.WorkBook {
+  const { stylesXml, headerXml, rowXml, summaryXml, footerXml, jsonData } = params;
+
+  const headerSection = parseSectionXml(headerXml, stylesXml);
+  const rowSection = parseSectionXml(rowXml, stylesXml);
+  const summarySection = parseSectionXml(summaryXml, stylesXml);
+  const footerSection = parseSectionXml(footerXml, stylesXml);
+
+  // Merge all styles
+  const allStyles = new Map<string, ParsedStyle>([
+    ...headerSection.styles,
+    ...rowSection.styles,
+    ...summarySection.styles,
+    ...footerSection.styles,
+  ]);
+
+  // Column headers for key matching
+  const columnHeaders = extractColumnHeaders(headerSection.rows);
+
+  const rowTemplate = rowSection.rows[0];
+  const summaryTemplate = summarySection.rows[0];
+
+  if (!rowTemplate) throw new Error("Row 서식에 <Row> 요소가 없습니다.");
+
+  const wb = XLSX.utils.book_new();
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  const rowHeights: { r: number; hpt: number }[] = [];
+
+  // Column widths
+  const colWidthMap = new Map<number, number>();
+  let colPos = 0;
+  for (const col of headerSection.columns) {
+    if (col.index !== undefined) colPos = col.index - 1;
+    colWidthMap.set(colPos, col.width);
+    colPos++;
   }
-  return [];
+
+  let outRow = 0;
+
+  // 1) Header rows (preserve ss:Index gaps)
+  let currentRow = 0;
+  for (const row of headerSection.rows) {
+    if (row.index !== undefined) currentRow = row.index - 1;
+    outRow = currentRow;
+    writeRow(ws, merges, outRow, row, allStyles);
+    if (row.height) rowHeights.push({ r: outRow, hpt: row.height });
+    currentRow++;
+  }
+  outRow = currentRow;
+
+  // 2) Data rows from JSON (type = "row" | "summary")
+  for (const entry of jsonData) {
+    const type = entry.type || "row";
+
+    if (type === "row") {
+      const cells = resolveCellPositions(rowTemplate.cells);
+      for (const { cell, col } of cells) {
+        const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
+        const style = toXlsxStyle(allStyles.get(cell.styleId));
+
+        // Match JSON key to column header
+        let val = "";
+        if (Array.isArray(entry)) {
+          val = String(entry[col] ?? "");
+        } else {
+          const colHeader = columnHeaders[col];
+          if (colHeader && colHeader in entry) {
+            val = String(entry[colHeader] ?? "");
+          }
+        }
+
+        let cellType = "s";
+        let cellVal: any = val;
+        if (val !== "" && !isNaN(Number(val))) {
+          cellType = "n";
+          cellVal = Number(val);
+        }
+        ws[ref] = { t: cellType, v: cellVal, s: style };
+
+        if (cell.mergeAcross > 0 || cell.mergeDown > 0) {
+          merges.push({
+            s: { r: outRow, c: col },
+            e: { r: outRow + cell.mergeDown, c: col + cell.mergeAcross },
+          });
+        }
+      }
+      if (rowTemplate.height) rowHeights.push({ r: outRow, hpt: rowTemplate.height });
+    } else if (type === "summary" && summaryTemplate) {
+      const cells = resolveCellPositions(summaryTemplate.cells);
+      for (const { cell, col } of cells) {
+        const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
+        const style = toXlsxStyle(allStyles.get(cell.styleId));
+
+        // For the merged label cell, use JSON "label" or "text" field
+        let val = cell.value;
+        if (cell.mergeAcross > 0) {
+          val = entry.label || entry.text || cell.value;
+        }
+        ws[ref] = { t: "s", v: val, s: style };
+
+        if (cell.mergeAcross > 0 || cell.mergeDown > 0) {
+          merges.push({
+            s: { r: outRow, c: col },
+            e: { r: outRow + cell.mergeDown, c: col + cell.mergeAcross },
+          });
+        }
+      }
+      if (summaryTemplate.height) rowHeights.push({ r: outRow, hpt: summaryTemplate.height });
+    }
+    outRow++;
+  }
+
+  // 3) Footer rows
+  for (const row of footerSection.rows) {
+    writeRow(ws, merges, outRow, row, allStyles);
+    if (row.height) rowHeights.push({ r: outRow, hpt: row.height });
+    outRow++;
+  }
+
+  // Sheet properties
+  const maxCol = 9;
+  ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(outRow - 1, 0), c: maxCol } });
+  ws["!merges"] = merges;
+  ws["!cols"] = Array.from({ length: maxCol + 1 }, (_, i) => ({
+    wch: Math.round((colWidthMap.get(i) || 75) / 7),
+  }));
+  ws["!rows"] = [];
+  for (const { r, hpt } of rowHeights) {
+    if (!ws["!rows"]![r]) ws["!rows"]![r] = {};
+    ws["!rows"]![r].hpt = hpt;
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  return wb;
 }
