@@ -5,20 +5,22 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
-import * as XLSX from "xlsx";
+import { extractPageData, type PageResult } from "@/lib/pdf-extract";
+import { buildWorkbook, downloadWorkbook } from "@/lib/excel-writer";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
-interface ExtractedData {
+interface ConvertedResult {
   fileName: string;
-  sheets: { name: string; data: string[][] }[];
+  pages: PageResult[];
 }
 
 const PdfToExcelConverter = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
-  const [convertedData, setConvertedData] = useState<ExtractedData | null>(null);
+  const [convertedData, setConvertedData] = useState<ConvertedResult | null>(null);
+  const [progress, setProgress] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -40,77 +42,41 @@ const PdfToExcelConverter = () => {
     if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
   }, [handleFile]);
 
-  const extractTextFromPdf = async (file: File): Promise<ExtractedData> => {
-    const buffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    const sheets: { name: string; data: string[][] }[] = [];
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const items = content.items as Array<{ str: string; transform: number[] }>;
-
-      if (items.length === 0) continue;
-
-      // Group by Y position (rows)
-      const rowMap = new Map<number, { x: number; text: string }[]>();
-      for (const item of items) {
-        const y = Math.round(item.transform[5]);
-        const x = item.transform[4];
-        if (!rowMap.has(y)) rowMap.set(y, []);
-        rowMap.get(y)!.push({ x, text: item.str });
-      }
-
-      // Sort rows by Y (descending = top to bottom in PDF)
-      const sortedRows = [...rowMap.entries()]
-        .sort(([a], [b]) => b - a)
-        .map(([, cells]) =>
-          cells.sort((a, b) => a.x - b.x).map((c) => c.text.trim()).filter(Boolean)
-        )
-        .filter((row) => row.length > 0);
-
-      if (sortedRows.length > 0) {
-        sheets.push({ name: `Page ${i}`, data: sortedRows });
-      }
-    }
-
-    if (sheets.length === 0) {
-      throw new Error("PDF에서 텍스트를 추출할 수 없습니다.");
-    }
-
-    return { fileName: file.name.replace(".pdf", ""), sheets };
-  };
-
   const handleConvert = async () => {
     if (!file) return;
     setIsConverting(true);
     try {
-      const data = await extractTextFromPdf(file);
-      setConvertedData(data);
-      toast.success("변환이 완료되었습니다!");
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const pages: PageResult[] = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        setProgress(`페이지 ${i}/${pdf.numPages} 분석 중...`);
+        const result = await extractPageData(pdf, i);
+        if (result) pages.push(result);
+      }
+
+      if (pages.length === 0) {
+        throw new Error("PDF에서 데이터를 추출할 수 없습니다.");
+      }
+
+      setConvertedData({
+        fileName: file.name.replace(/\.pdf$/i, ""),
+        pages,
+      });
+      toast.success("변환이 완료되었습니다! 서식과 테두리가 보존됩니다.");
     } catch (err: any) {
       toast.error(err.message || "변환 중 오류가 발생했습니다.");
     } finally {
       setIsConverting(false);
+      setProgress("");
     }
   };
 
   const handleDownload = () => {
     if (!convertedData) return;
-    const wb = XLSX.utils.book_new();
-    for (const sheet of convertedData.sheets) {
-      const ws = XLSX.utils.aoa_to_sheet(sheet.data);
-      // Auto-size columns
-      const colWidths = sheet.data.reduce((acc, row) => {
-        row.forEach((cell, i) => {
-          acc[i] = Math.max(acc[i] || 8, cell.length + 2);
-        });
-        return acc;
-      }, {} as Record<number, number>);
-      ws["!cols"] = Object.values(colWidths).map((w) => ({ wch: Math.min(w, 50) }));
-      XLSX.utils.book_append_sheet(wb, ws, sheet.name.slice(0, 31));
-    }
-    XLSX.writeFile(wb, `${convertedData.fileName}.xlsx`);
+    const wb = buildWorkbook(convertedData.pages);
+    downloadWorkbook(wb, convertedData.fileName);
     toast.success("파일이 다운로드되었습니다!");
   };
 
@@ -119,6 +85,11 @@ const PdfToExcelConverter = () => {
     setConvertedData(null);
     if (inputRef.current) inputRef.current.value = "";
   };
+
+  const previewPage = convertedData?.pages[0];
+  const previewRows = previewPage?.grid.slice(0, 10) || [];
+  const totalRows = previewPage?.grid.length || 0;
+  const totalCols = previewPage?.grid[0]?.length || 0;
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-8">
@@ -135,7 +106,7 @@ const PdfToExcelConverter = () => {
             PDF를 엑셀로 변환하세요
           </h1>
           <p className="text-muted-foreground text-lg">
-            PDF 파일을 업로드하면 데이터를 추출하여 Excel 파일로 변환합니다.
+            서식, 테두리, 텍스트 위치를 보존하여 Excel로 변환합니다.
           </p>
         </div>
 
@@ -203,7 +174,7 @@ const PdfToExcelConverter = () => {
                   {isConverting ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      변환 중...
+                      {progress || "변환 중..."}
                     </>
                   ) : (
                     <>
@@ -233,19 +204,27 @@ const PdfToExcelConverter = () => {
             </div>
 
             {/* Preview */}
-            {convertedData && (
+            {convertedData && previewPage && (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-muted-foreground">
-                  {convertedData.sheets.length}개 페이지에서 데이터 추출 완료
+                  {convertedData.pages.length}개 페이지 · {totalRows}행 × {totalCols}열 추출 완료
                 </p>
                 <div className="max-h-64 overflow-auto rounded-lg border bg-muted/30">
                   <table className="w-full text-sm">
                     <tbody>
-                      {convertedData.sheets[0]?.data.slice(0, 10).map((row, i) => (
-                        <tr key={i} className={i === 0 ? "bg-primary/5 font-medium" : "border-t border-border"}>
+                      {previewRows.map((row, i) => (
+                        <tr key={i} className="border-t border-border">
                           {row.map((cell, j) => (
-                            <td key={j} className="px-3 py-2 text-foreground whitespace-nowrap">
-                              {cell}
+                            <td
+                              key={j}
+                              className={`px-3 py-2 whitespace-nowrap text-foreground ${
+                                cell.bold ? "font-bold" : ""
+                              } ${cell.borderBottom ? "border-b border-foreground/30" : ""} ${
+                                cell.borderRight ? "border-r border-foreground/30" : ""
+                              }`}
+                              style={{ fontSize: `${Math.max(11, cell.fontSize * 0.75)}px` }}
+                            >
+                              {cell.text}
                             </td>
                           ))}
                         </tr>
@@ -253,9 +232,9 @@ const PdfToExcelConverter = () => {
                     </tbody>
                   </table>
                 </div>
-                {(convertedData.sheets[0]?.data.length || 0) > 10 && (
+                {totalRows > 10 && (
                   <p className="text-xs text-muted-foreground text-center">
-                    ... 외 {convertedData.sheets[0].data.length - 10}개 행
+                    ... 외 {totalRows - 10}개 행
                   </p>
                 )}
               </div>
