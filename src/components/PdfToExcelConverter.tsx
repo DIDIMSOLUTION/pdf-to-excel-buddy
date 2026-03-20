@@ -3,7 +3,6 @@ import { Download, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { toast } from "sonner";
 import {
   DEFAULT_STYLES_XML,
   DEFAULT_HEADER_XML,
