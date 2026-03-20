@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Download, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   DEFAULT_STYLES_XML,
@@ -48,23 +47,29 @@ const PdfToExcelConverter = () => {
   const [jsonText, setJsonText] = useState(DEFAULT_JSON);
   const [showStyles, setShowStyles] = useState(false);
 
-  // Template variables
-  const [경찰서, set경찰서] = useState("");
-  const [품목, set품목] = useState("");
-  const [연도차수, set연도차수] = useState("2025년 2차");
-
   const handleGenerate = () => {
     try {
-      const data = JSON.parse(jsonText);
-      const arr = Array.isArray(data) ? data : [data];
+      const parsed = JSON.parse(jsonText);
+      let jsonData: any[];
+      let templateVars: Record<string, string> = {};
+
+      if (parsed && !Array.isArray(parsed) && parsed.data) {
+        // { vars: {...}, data: [[...]] } 형식
+        templateVars = parsed.vars || {};
+        jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+      } else {
+        // 기존 배열 형식도 지원
+        jsonData = Array.isArray(parsed) ? parsed : [parsed];
+      }
+
       const wb = buildXlsxFromSections({
         stylesXml,
         headerXml,
         rowXml,
         summaryXml,
         footerXml,
-        jsonData: arr,
-        templateVars: { 경찰서, 품목, 연도차수 },
+        jsonData,
+        templateVars,
       });
       downloadWorkbook(wb, "output");
       toast.success("엑셀 파일이 다운로드되었습니다!");
@@ -80,9 +85,6 @@ const PdfToExcelConverter = () => {
     setSummaryXml(DEFAULT_SUMMARY_XML);
     setFooterXml(DEFAULT_FOOTER_XML);
     setJsonText(DEFAULT_JSON);
-    set경찰서("");
-    set품목("");
-    set연도차수("2025년 2차");
   };
 
   return (
@@ -103,43 +105,6 @@ const PdfToExcelConverter = () => {
             Header · Row · Summary · Footer XML 서식과 JSON 데이터를 합쳐 엑셀을 생성합니다.
           </p>
         </div>
-
-        {/* Template Variables */}
-        <Card className="p-5 space-y-3">
-          <h2 className="text-sm font-bold text-foreground">헤더 변수 치환</h2>
-          <p className="text-xs text-muted-foreground">
-            Header XML 내 <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">{"{{변수명}}"}</code> 이 아래 값으로 대치됩니다.
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">경찰서</label>
-              <Input
-                value={경찰서}
-                onChange={(e) => set경찰서(e.target.value)}
-                placeholder="예: 서울강남"
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">품목</label>
-              <Input
-                value={품목}
-                onChange={(e) => set품목(e.target.value)}
-                placeholder="예: 동복"
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">연도차수</label>
-              <Input
-                value={연도차수}
-                onChange={(e) => set연도차수(e.target.value)}
-                placeholder="예: 2025년 2차"
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-        </Card>
 
         {/* XML Sections */}
         <Card className="p-5 space-y-4">
@@ -177,14 +142,14 @@ const PdfToExcelConverter = () => {
         <Card className="p-5 space-y-3">
           <h2 className="text-sm font-bold text-foreground">데이터 입력 (JSON)</h2>
           <p className="text-xs text-muted-foreground">
-            중첩 배열 지원: <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">[[row, row, summary], [row, summary]]</code> — 각 그룹 내 <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">No</code> 기준 자동 정렬
+            <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">{"{ \"vars\": {...}, \"data\": [[...]] }"}</code> 형식 — <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">vars</code>의 키가 Header XML 내 <code className="px-1 py-0.5 rounded bg-muted text-accent-foreground">{"{{키}}"}</code>를 대치합니다.
           </p>
           <textarea
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y leading-relaxed"
             rows={10}
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
-            placeholder={'[\n  [\n    {"type":"row","No":"1","부서":"..."},\n    {"type":"summary","label":"(부서계) : 1"}\n  ]\n]'}
+            placeholder={'{\n  "vars": {"경찰서":"서울강남","품목":"동복","연도차수":"2025년 2차"},\n  "data": [\n    [{"type":"row","No":"1","부서":"..."},{"type":"summary","label":"(부서계) : 1"}]\n  ]\n}'}
             spellCheck={false}
           />
         </Card>
