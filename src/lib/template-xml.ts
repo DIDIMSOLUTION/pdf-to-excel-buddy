@@ -355,19 +355,31 @@ export function buildXlsxFromTemplate(
       outRow++;
     }
 
+    // Build column header → col index mapping for key-based matching
+    const headers = getColumnHeaders(template);
+    const headerColMap = new Map<string, number>(); // header name → col index
+    headers.forEach((h, i) => { if (h) headerColMap.set(h, i); });
+
     // Write data rows from JSON
     if (dataRowTemplate && jsonData.length > 0) {
       for (let d = 0; d < jsonData.length; d++) {
         const entry = jsonData[d];
         const cells = resolveCellPositions(dataRowTemplate.cells);
 
-        // Map JSON values to cells
-        const keys = Array.isArray(entry) ? entry : Object.values(entry);
-
         for (const { cell, col } of cells) {
           const ref = XLSX.utils.encode_cell({ r: outRow, c: col });
-          const jsonVal = keys[col];
-          const val = jsonVal !== undefined && jsonVal !== null ? String(jsonVal) : cell.value;
+
+          // Match by column header name if entry is an object
+          let jsonVal: any = undefined;
+          if (Array.isArray(entry)) {
+            jsonVal = entry[col];
+          } else if (typeof entry === "object" && entry !== null) {
+            const colHeader = headers[col];
+            if (colHeader && colHeader in entry) {
+              jsonVal = entry[colHeader];
+            }
+          }
+          const val = jsonVal !== undefined && jsonVal !== null ? String(jsonVal) : "";
 
           const style = toXlsxStyle(template.styles.get(cell.styleId));
 
