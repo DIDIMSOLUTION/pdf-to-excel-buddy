@@ -86,9 +86,6 @@ const PdfToExcelConverter = () => {
     setSummaryXml(DEFAULT_SUMMARY_XML);
     setFooterXml(DEFAULT_FOOTER_XML);
     setJsonText(DEFAULT_JSON);
-    set경찰서("");
-    set품목("");
-    set연도차수("2025년 2차");
   };
 
   return (
