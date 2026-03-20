@@ -48,23 +48,29 @@ const PdfToExcelConverter = () => {
   const [jsonText, setJsonText] = useState(DEFAULT_JSON);
   const [showStyles, setShowStyles] = useState(false);
 
-  // Template variables
-  const [경찰서, set경찰서] = useState("");
-  const [품목, set품목] = useState("");
-  const [연도차수, set연도차수] = useState("2025년 2차");
-
   const handleGenerate = () => {
     try {
-      const data = JSON.parse(jsonText);
-      const arr = Array.isArray(data) ? data : [data];
+      const parsed = JSON.parse(jsonText);
+      let jsonData: any[];
+      let templateVars: Record<string, string> = {};
+
+      if (parsed && !Array.isArray(parsed) && parsed.data) {
+        // { vars: {...}, data: [[...]] } 형식
+        templateVars = parsed.vars || {};
+        jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+      } else {
+        // 기존 배열 형식도 지원
+        jsonData = Array.isArray(parsed) ? parsed : [parsed];
+      }
+
       const wb = buildXlsxFromSections({
         stylesXml,
         headerXml,
         rowXml,
         summaryXml,
         footerXml,
-        jsonData: arr,
-        templateVars: { 경찰서, 품목, 연도차수 },
+        jsonData,
+        templateVars,
       });
       downloadWorkbook(wb, "output");
       toast.success("엑셀 파일이 다운로드되었습니다!");
