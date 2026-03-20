@@ -484,7 +484,7 @@ export function buildXlsxFromSections(params: {
 
   // Apply template variable replacement to header
   let headerXml = params.headerXml;
-  if (templateVars) {
+  if (templateVars && Object.keys(templateVars).length > 0) {
     headerXml = replaceTemplateVars(headerXml, templateVars);
   }
 

@@ -150,7 +150,7 @@ const PdfToExcelConverter = () => {
             rows={10}
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
-            placeholder={'[\n  [\n    {"type":"row","No":"1","부서":"..."},\n    {"type":"summary","label":"(부서계) : 1"}\n  ]\n]'}
+            placeholder={'{\n  "vars": {"경찰서":"서울강남","품목":"동복","연도차수":"2025년 2차"},\n  "data": [\n    [{"type":"row","No":"1","부서":"..."},{"type":"summary","label":"(부서계) : 1"}]\n  ]\n}'}
             spellCheck={false}
           />
         </Card>
