@@ -3,15 +3,20 @@ import { Upload, FileSpreadsheet, Download, X, FileCode, FileJson } from "lucide
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { parseTemplateXml, mergeJsonWithTemplate } from "@/lib/template-xml";
-import { buildWorkbook, downloadWorkbook } from "@/lib/excel-writer";
+import {
+  parseSpreadsheetML,
+  buildXlsxFromTemplate,
+  getColumnHeaders,
+  type TemplateInfo,
+} from "@/lib/template-xml";
+import { downloadWorkbook } from "@/lib/excel-writer";
 
 const PdfToExcelConverter = () => {
-  const [xmlTemplate, setXmlTemplate] = useState<string | null>(null);
+  const [template, setTemplate] = useState<TemplateInfo | null>(null);
   const [xmlFileName, setXmlFileName] = useState("");
+  const [columnHeaders, setColumnHeaders] = useState<string[]>([]);
   const [jsonData, setJsonData] = useState<any[] | null>(null);
   const [jsonFileName, setJsonFileName] = useState("");
-  const [templateInfo, setTemplateInfo] = useState<{ sheets: number; cols: number } | null>(null);
 
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
@@ -21,14 +26,17 @@ const PdfToExcelConverter = () => {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       try {
-        const sheets = parseTemplateXml(text);
-        if (sheets.length === 0) throw new Error("유효한 서식 템플릿이 아닙니다.");
-        setXmlTemplate(text);
+        const tmpl = parseSpreadsheetML(text);
+        setTemplate(tmpl);
         setXmlFileName(f.name);
-        setTemplateInfo({ sheets: sheets.length, cols: sheets[0].cols });
-        toast.success(`서식 로드 완료 (${sheets.length}개 시트, ${sheets[0].cols}개 열)`);
-      } catch {
-        toast.error("유효한 XML 서식 템플릿이 아닙니다.");
+        const headers = getColumnHeaders(tmpl);
+        setColumnHeaders(headers);
+        const sheetInfo = tmpl.sheets[0];
+        toast.success(
+          `서식 로드 완료 (${tmpl.sheets.length}개 시트, ${tmpl.dataRowIndices.length}개 데이터 행 감지)`
+        );
+      } catch (err: any) {
+        toast.error(err.message || "XML 파싱에 실패했습니다.");
       }
     };
     reader.readAsText(f);
@@ -52,11 +60,9 @@ const PdfToExcelConverter = () => {
   };
 
   const handleGenerate = () => {
-    if (!xmlTemplate || !jsonData) return;
+    if (!template || !jsonData) return;
     try {
-      const sheets = parseTemplateXml(xmlTemplate);
-      const pages = mergeJsonWithTemplate(sheets, jsonData);
-      const wb = buildWorkbook(pages);
+      const wb = buildXlsxFromTemplate(template, jsonData);
       downloadWorkbook(wb, xmlFileName.replace(/\.xml$/i, "") || "output");
       toast.success("엑셀 파일이 다운로드되었습니다!");
     } catch (err: any) {
@@ -65,16 +71,16 @@ const PdfToExcelConverter = () => {
   };
 
   const reset = () => {
-    setXmlTemplate(null);
+    setTemplate(null);
     setXmlFileName("");
+    setColumnHeaders([]);
     setJsonData(null);
     setJsonFileName("");
-    setTemplateInfo(null);
     if (xmlInputRef.current) xmlInputRef.current.value = "";
     if (jsonInputRef.current) jsonInputRef.current.value = "";
   };
 
-  const ready = !!xmlTemplate && !!jsonData;
+  const ready = !!template && !!jsonData;
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-8">
@@ -91,7 +97,7 @@ const PdfToExcelConverter = () => {
             서식 보존 엑셀 생성
           </h1>
           <p className="text-muted-foreground">
-            XML 서식 템플릿과 JSON 데이터를 업로드하면 Excel로 변환합니다.
+            Excel XML 서식과 JSON 데이터를 합쳐 엑셀 파일을 생성합니다.
           </p>
         </div>
 
@@ -100,24 +106,22 @@ const PdfToExcelConverter = () => {
           <div className="space-y-2">
             <label className="text-sm font-semibold text-foreground flex items-center gap-2">
               <FileCode className="w-4 h-4 text-primary" />
-              XML 서식 템플릿
+              XML 서식 파일
             </label>
-            {xmlTemplate ? (
+            {template ? (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                 <FileCode className="w-5 h-5 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{xmlFileName}</p>
-                  {templateInfo && (
-                    <p className="text-xs text-muted-foreground">
-                      {templateInfo.sheets}개 시트 · {templateInfo.cols}개 열
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {template.sheets.length}개 시트 · 데이터 행 {template.dataRowIndices.length}개 감지
+                  </p>
                 </div>
                 <button
                   onClick={() => {
-                    setXmlTemplate(null);
+                    setTemplate(null);
                     setXmlFileName("");
-                    setTemplateInfo(null);
+                    setColumnHeaders([]);
                     if (xmlInputRef.current) xmlInputRef.current.value = "";
                   }}
                   className="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground"
@@ -131,7 +135,7 @@ const PdfToExcelConverter = () => {
                 className="w-full p-6 border-2 border-dashed border-border rounded-xl hover:border-primary/50 hover:bg-[hsl(var(--drop-zone-hover))] transition-all flex flex-col items-center gap-2 text-muted-foreground"
               >
                 <Upload className="w-6 h-6" />
-                <span className="text-sm font-medium">XML 파일 업로드</span>
+                <span className="text-sm font-medium">Excel XML 파일 업로드</span>
               </button>
             )}
             <input
@@ -141,6 +145,29 @@ const PdfToExcelConverter = () => {
               className="hidden"
               onChange={(e) => e.target.files?.[0] && handleXmlFile(e.target.files[0])}
             />
+
+            {/* Column Headers Info */}
+            {columnHeaders.length > 0 && (
+              <div className="p-3 rounded-lg bg-accent/50 space-y-1">
+                <p className="text-xs font-semibold text-accent-foreground">감지된 컬럼:</p>
+                <div className="flex flex-wrap gap-1">
+                  {columnHeaders.map(
+                    (h, i) =>
+                      h && (
+                        <span
+                          key={i}
+                          className="px-2 py-0.5 rounded bg-accent text-accent-foreground text-xs font-medium"
+                        >
+                          {h}
+                        </span>
+                      )
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  JSON 키 또는 배열 순서가 위 컬럼 순서와 일치해야 합니다.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* JSON Upload */}
@@ -195,7 +222,7 @@ const PdfToExcelConverter = () => {
               <Download className="w-5 h-5 mr-2" />
               엑셀 다운로드 (.xlsx)
             </Button>
-            {(xmlTemplate || jsonData) && (
+            {(template || jsonData) && (
               <Button variant="outline" className="h-12" onClick={reset}>
                 초기화
               </Button>
