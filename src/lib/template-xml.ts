@@ -183,13 +183,33 @@ export function parseSpreadsheetML(xmlStr: string): TemplateInfo {
 
   if (sheets.length === 0) throw new Error("시트를 찾을 수 없습니다.");
 
-  // Detect data rows: rows that have style s81 (bordered, no bold) cells are likely data rows
-  // Heuristic: find rows where most cells have border styles and contain actual data
+  // Detect header vs data rows
+  // Strategy: find separator row (very short height + wide merge) as the boundary
+  // Everything up to and including the separator is header; after that, data rows
   const dataRowIndices: number[] = [];
   let headerRowCount = 0;
   const sheet = sheets[0];
+  const resolvedRows = resolveRowPositions(sheet.rows);
 
-  for (let r = 0; r < sheet.rows.length; r++) {
+  // Find separator row: short height (<= 6px) with a wide merge
+  let separatorIdx = -1;
+  for (let i = 0; i < resolvedRows.length; i++) {
+    const row = sheet.rows[i];
+    const isShortRow = row.height !== undefined && row.height <= 6;
+    const hasWideMerge = row.cells.some((c) => c.mergeAcross >= 5);
+    if (isShortRow && hasWideMerge) {
+      separatorIdx = i;
+      break;
+    }
+  }
+
+  // If separator found, header = everything up to and including it
+  // Otherwise, fall back to heuristic
+  if (separatorIdx >= 0) {
+    headerRowCount = separatorIdx + 1; // include separator in header
+  }
+
+  for (let r = (separatorIdx >= 0 ? separatorIdx + 1 : 0); r < sheet.rows.length; r++) {
     const row = sheet.rows[r];
     const hasManyBorderedCells = row.cells.filter((c) => {
       const s = styles.get(c.styleId);
@@ -204,7 +224,7 @@ export function parseSpreadsheetML(xmlStr: string): TemplateInfo {
       dataRowIndices.push(r);
     }
 
-    if (dataRowIndices.length === 0) {
+    if (separatorIdx < 0 && dataRowIndices.length === 0) {
       headerRowCount = r + 1;
     }
   }
