@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Download, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { toast } from "sonner";
 import {
   DEFAULT_STYLES_XML,
