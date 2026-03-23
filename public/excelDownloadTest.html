@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Excel Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;background:#f8f9fa;display:flex;justify-content:center;padding:2rem}
+.wrap{max-width:700px;width:100%}
+h1{text-align:center;margin-bottom:1rem;font-size:1.5rem}
+.card{background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:1.2rem;margin-bottom:1rem}
+label{display:block;font-size:.75rem;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:.3rem}
+textarea{width:100%;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-size:.7rem;font-family:monospace;resize:vertical}
+.actions{display:flex;gap:.5rem}
+button{flex:1;padding:.7rem;border:none;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer}
+.primary{background:#2563eb;color:#fff}
+.outline{background:#fff;border:1px solid #ccc;flex:0}
+.msg{text-align:center;padding:2rem;font-size:1.1rem;color:#333}
+.collapsible-btn{width:100%;text-align:left;background:none;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-size:.75rem;font-weight:700;color:#666;cursor:pointer;flex:1}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+// ─── Default XML templates ─────────────────────────────────
+const DEFAULT_STYLES_XML = `<Style ss:ID="Default" ss:Name="Normal">
+ <Alignment ss:Vertical="Center"/>
+ <Borders/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000"/>
+ <Interior/><NumberFormat/><Protection/>
+</Style>
+<Style ss:ID="m34466542392">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders><NumberFormat/>
+</Style>
+<Style ss:ID="s72">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="20" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s73">
+ <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s74">
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s75">
+ <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+ <NumberFormat/>
+</Style>
+<Style ss:ID="s80">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders><NumberFormat/>
+</Style>
+<Style ss:ID="s81">
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders><NumberFormat/>
+</Style>
+<Style ss:ID="s82">
+ <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <NumberFormat ss:Format="yyyy\\-mm\\-dd;@"/>
+</Style>
+<Style ss:ID="s94">
+ <Alignment ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+</Style>
+<Style ss:ID="s95">
+ <Alignment ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+</Style>
+<Style ss:ID="s96">
+ <Alignment ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+</Style>
+<Style ss:ID="s107">
+ <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+</Style>
+<Style ss:ID="s109">
+ <Borders>
+  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+</Style>
+<Style ss:ID="s111">
+ <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+ <Borders>
+  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+ </Borders>
+ <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
+</Style>`;
+
+const DEFAULT_HEADER_XML = `<Column ss:AutoFitWidth="0" ss:Width="41"/>
+<Column ss:AutoFitWidth="0" ss:Width="107"/>
+<Column ss:Index="5" ss:AutoFitWidth="0" ss:Width="43"/>
+<Column ss:AutoFitWidth="0" ss:Width="59"/>
+<Column ss:AutoFitWidth="0" ss:Width="86"/>
+<Column ss:Index="9" ss:AutoFitWidth="0" ss:Width="99"/>
+<Column ss:AutoFitWidth="0" ss:Width="63"/>
+<Row>
+ <Cell ss:MergeAcross="9" ss:MergeDown="2" ss:StyleID="s72"><Data ss:Type="String">납품서</Data></Cell>
+</Row>
+<Row ss:Index="4" ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">경찰서 : {{경찰서}}</Data></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">품목 : {{품목}}</Data></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:StyleID="s74"></Cell>
+ <Cell ss:MergeAcross="1" ss:StyleID="s75"><Data ss:Type="String">{{연도차수}}</Data></Cell>
+</Row>
+<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:StyleID="s80"><Data ss:Type="String">No</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">부서</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">이름</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">계급</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">성별</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">수량</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">구분</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">스펙</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">출고일</Data></Cell>
+ <Cell ss:StyleID="s80"><Data ss:Type="String">비고</Data></Cell>
+</Row>
+<Row ss:AutoFitHeight="0" ss:Height="4">
+ <Cell ss:MergeAcross="9" ss:StyleID="m34466542392"></Cell>
+</Row>`;
+
+const DEFAULT_ROW_XML = `<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:StyleID="s80"><Data ss:Type="Number">1</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">부서</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">이름</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">계급</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">남</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="Number">1</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">구분</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">스펙</Data></Cell>
+ <Cell ss:StyleID="s82"><Data ss:Type="DateTime">2025-11-28T00:00:00.000</Data></Cell>
+ <Cell ss:StyleID="s81"><Data ss:Type="String">비고</Data></Cell>
+</Row>`;
+
+const DEFAULT_SUMMARY_XML = `<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:MergeAcross="5" ss:StyleID="s107"><Data ss:Type="String">(부서계) : 1</Data></Cell>
+ <Cell ss:StyleID="s95"></Cell>
+ <Cell ss:StyleID="s95"></Cell>
+ <Cell ss:StyleID="s96"></Cell>
+ <Cell ss:StyleID="s94"></Cell>
+</Row>`;
+
+const DEFAULT_FOOTER_XML = `<Row ss:AutoFitHeight="0" ss:Height="12">
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+ <Cell ss:StyleID="s109"></Cell>
+</Row>
+<Row ss:AutoFitHeight="0" ss:Height="27">
+ <Cell ss:MergeAcross="5" ss:StyleID="s111"><Data ss:Type="String">경찰서계 : 2</Data></Cell>
+</Row>`;
+
+const DEFAULT_JSON = `{
+  "vars": {"경찰서":"서울강남","품목":"동복","연도차수":"2025년 2차"},
+  "data": [
+    [
+      {"type":"row","No":"1","부서":"청문-감찰","이름":"서문륜","계급":"경감","성별":"남","수량":"1","구분":"","스펙":"무","출고일":"","비고":""},
+      {"type":"summary","label":"(부서계) : 1"}
+    ],
+    [
+      {"type":"row","No":"2","부서":"생안-교통","이름":"황정근","계급":"경감","성별":"남","수량":"1","구분":"","스펙":"무","출고일":"","비고":""},
+      {"type":"summary","label":"(부서계) : 1"}
+    ]
+  ]
+}`;
+
+// ─── XML Parsing Engine ─────────────────────────────────────
+const SS = "urn:schemas-microsoft-com:office:spreadsheet";
+
+function getAttr(el, ns, name) {
+  return el.getAttributeNS(ns, name) || el.getAttribute("ss:" + name) || null;
+}
+
+function parseStyles(doc) {
+  var map = new Map();
+  var els = doc.getElementsByTagName("Style");
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    var id = getAttr(el, SS, "ID") || "";
+    var style = {};
+    var fontEl = el.getElementsByTagName("Font")[0];
+    if (fontEl) {
+      style.font = {
+        name: getAttr(fontEl, SS, "FontName") || undefined,
+        size: getAttr(fontEl, SS, "Size") ? parseFloat(getAttr(fontEl, SS, "Size")) : undefined,
+        bold: getAttr(fontEl, SS, "Bold") === "1",
+        color: getAttr(fontEl, SS, "Color") || undefined
+      };
+    }
+    var alignEl = el.getElementsByTagName("Alignment")[0];
+    if (alignEl) {
+      style.alignment = {
+        horizontal: getAttr(alignEl, SS, "Horizontal") || undefined,
+        vertical: getAttr(alignEl, SS, "Vertical") || undefined
+      };
+    }
+    var bordersEl = el.getElementsByTagName("Borders")[0];
+    if (bordersEl) {
+      var borderEls = bordersEl.getElementsByTagName("Border");
+      var borders = {};
+      for (var b = 0; b < borderEls.length; b++) {
+        var pos = getAttr(borderEls[b], SS, "Position");
+        if (pos === "Top") borders.top = true;
+        if (pos === "Bottom") borders.bottom = true;
+        if (pos === "Left") borders.left = true;
+        if (pos === "Right") borders.right = true;
+      }
+      style.borders = borders;
+    }
+    var nfEl = el.getElementsByTagName("NumberFormat")[0];
+    if (nfEl) style.numberFormat = getAttr(nfEl, SS, "Format") || undefined;
+    map.set(id, style);
+  }
+  return map;
+}
+
+function toXlsxStyle(style) {
+  if (!style) return {};
+  var s = {};
+  if (style.font) {
+    s.font = { name: style.font.name || "맑은 고딕", sz: style.font.size || 12, bold: style.font.bold || false };
+    if (style.font.color) s.font.color = { rgb: style.font.color.replace("#", "") };
+  }
+  if (style.alignment) {
+    s.alignment = {
+      horizontal: (style.alignment.horizontal || "left").toLowerCase(),
+      vertical: (style.alignment.vertical || "center").toLowerCase(),
+      wrapText: true
+    };
+  }
+  if (style.borders) {
+    var thin = { style: "thin", color: { rgb: "000000" } };
+    s.border = {};
+    if (style.borders.top) s.border.top = thin;
+    if (style.borders.bottom) s.border.bottom = thin;
+    if (style.borders.left) s.border.left = thin;
+    if (style.borders.right) s.border.right = thin;
+  }
+  if (style.numberFormat) s.numFmt = style.numberFormat;
+  return s;
+}
+
+function resolveCellPositions(cells) {
+  var result = [];
+  var currentCol = 0;
+  for (var i = 0; i < cells.length; i++) {
+    var cell = cells[i];
+    if (cell.colIndex !== undefined) currentCol = cell.colIndex - 1;
+    result.push({ cell: cell, col: currentCol });
+    currentCol += 1 + cell.mergeAcross;
+  }
+  return result;
+}
+
+function wrapInWorkbook(stylesXml, tableContent) {
+  return '<?xml version="1.0"?>' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
+    ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"' +
+    ' xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+    '<Styles>' + stylesXml + '</Styles>' +
+    '<Worksheet ss:Name="Sheet1"><Table>' + tableContent + '</Table></Worksheet>' +
+    '</Workbook>';
+}
+
+function parseRowElements(tableEl) {
+  var rows = [];
+  for (var i = 0; i < tableEl.children.length; i++) {
+    var rowEl = tableEl.children[i];
+    if (rowEl.tagName !== "Row") continue;
+    var rowIdx = getAttr(rowEl, SS, "Index");
+    var height = getAttr(rowEl, SS, "Height");
+    var cells = [];
+    var cellEls = rowEl.getElementsByTagName("Cell");
+    for (var c = 0; c < cellEls.length; c++) {
+      var cellEl = cellEls[c];
+      var dataEl = cellEl.getElementsByTagName("Data")[0];
+      var value = dataEl ? (dataEl.textContent || "") : "";
+      var type = dataEl ? (getAttr(dataEl, SS, "Type") || "String") : "String";
+      var styleId = getAttr(cellEl, SS, "StyleID") || "Default";
+      var mergeAcross = parseInt(getAttr(cellEl, SS, "MergeAcross") || "0");
+      var mergeDown = parseInt(getAttr(cellEl, SS, "MergeDown") || "0");
+      var colIdx = getAttr(cellEl, SS, "Index");
+      cells.push({ value: value, type: type, styleId: styleId, mergeAcross: mergeAcross, mergeDown: mergeDown, colIndex: colIdx ? parseInt(colIdx) : undefined });
+    }
+    rows.push({ cells: cells, height: height ? parseFloat(height) : undefined, index: rowIdx ? parseInt(rowIdx) : undefined });
+  }
+  return rows;
+}
+
+function parseColumnElements(tableEl) {
+  var columns = [];
+  var colEls = tableEl.getElementsByTagName("Column");
+  for (var i = 0; i < colEls.length; i++) {
+    var el = colEls[i];
+    var idx = getAttr(el, SS, "Index");
+    var w = parseFloat(getAttr(el, SS, "Width") || "75");
+    columns.push({ width: w, index: idx ? parseInt(idx) : undefined });
+  }
+  return columns;
+}
+
+function parseSectionXml(sectionXml, stylesXml) {
+  var xml = wrapInWorkbook(stylesXml, sectionXml);
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(xml, "text/xml");
+  var err = doc.querySelector("parsererror");
+  if (err) throw new Error("XML 파싱 오류: " + (err.textContent || "").slice(0, 100));
+  var styles = parseStyles(doc);
+  var tableEl = doc.getElementsByTagName("Table")[0];
+  var rows = parseRowElements(tableEl);
+  var columns = parseColumnElements(tableEl);
+  return { rows: rows, columns: columns, styles: styles };
+}
+
+function extractColumnHeaders(rows) {
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var row = rows[i];
+    var cells = resolveCellPositions(row.cells);
+    var labels = cells.filter(function(c) { return c.cell.value && c.cell.mergeAcross === 0; });
+    if (labels.length >= 3) {
+      var headers = [];
+      for (var j = 0; j < cells.length; j++) {
+        headers[cells[j].col] = cells[j].cell.value;
+      }
+      return headers;
+    }
+  }
+  return [];
+}
+
+function writeRow(ws, merges, outRow, row, styles) {
+  var cells = resolveCellPositions(row.cells);
+  for (var i = 0; i < cells.length; i++) {
+    var cell = cells[i].cell;
+    var col = cells[i].col;
+    var ref = XLSX.utils.encode_cell({ r: outRow, c: col });
+    var style = toXlsxStyle(styles.get(cell.styleId));
+    var cellType = "s";
+    var cellVal = cell.value;
+    if (cell.type === "Number" && cell.value !== "") {
+      cellType = "n";
+      cellVal = Number(cell.value);
+    } else if (cell.type === "DateTime" && cell.value) {
+      cellType = "s";
+      cellVal = cell.value.split("T")[0];
+    }
+    ws[ref] = { t: cellType, v: cellVal, s: style };
+    if (cell.mergeAcross > 0 || cell.mergeDown > 0) {
+      merges.push({ s: { r: outRow, c: col }, e: { r: outRow + cell.mergeDown, c: col + cell.mergeAcross } });
+    }
+  }
+}
+
+function replaceTemplateVars(xml, vars) {
+  var result = xml;
+  for (var key in vars) {
+    if (vars.hasOwnProperty(key)) {
+      result = result.split("{{" + key + "}}").join(vars[key]);
+    }
+  }
+  return result;
+}
+
+function flattenJsonData(data) {
+  var flat = [];
+  for (var i = 0; i < data.length; i++) {
+    var item = data[i];
+    if (Array.isArray(item)) {
+      var rows = item.filter(function(e) { return e.type === "row" || !e.type; });
+      var others = item.filter(function(e) { return e.type && e.type !== "row"; });
+      rows.sort(function(a, b) { return (parseInt(a.No || "0", 10)) - (parseInt(b.No || "0", 10)); });
+      flat = flat.concat(rows, others);
+    } else {
+      flat.push(item);
+    }
+  }
+  return flat;
+}
+
+function buildXlsxFromSections(params) {
+  var stylesXml = params.stylesXml;
+  var headerXml = params.headerXml;
+  var rowXml = params.rowXml;
+  var summaryXml = params.summaryXml;
+  var footerXml = params.footerXml;
+  var jsonData = params.jsonData;
+  var templateVars = params.templateVars || {};
+
+  if (Object.keys(templateVars).length > 0) {
+    headerXml = replaceTemplateVars(headerXml, templateVars);
+  }
+
+  var headerSection = parseSectionXml(headerXml, stylesXml);
+  var rowSection = parseSectionXml(rowXml, stylesXml);
+  var summarySection = parseSectionXml(summaryXml, stylesXml);
+  var footerSection = parseSectionXml(footerXml, stylesXml);
+
+  var allStyles = new Map([
+    ...headerSection.styles, ...rowSection.styles, ...summarySection.styles, ...footerSection.styles
+  ]);
+
+  var columnHeaders = extractColumnHeaders(headerSection.rows);
+  var rowTemplate = rowSection.rows[0];
+  var summaryTemplate = summarySection.rows[0];
+  if (!rowTemplate) throw new Error("Row 서식에 <Row> 요소가 없습니다.");
+
+  var flatData = flattenJsonData(jsonData);
+  var wb = XLSX.utils.book_new();
+  var ws = {};
+  var merges = [];
+  var rowHeights = [];
+
+  var colWidthMap = new Map();
+  var colPos = 0;
+  for (var ci = 0; ci < headerSection.columns.length; ci++) {
+    var col = headerSection.columns[ci];
+    if (col.index !== undefined) colPos = col.index - 1;
+    colWidthMap.set(colPos, col.width);
+    colPos++;
+  }
+
+  var outRow = 0;
+  var currentRow = 0;
+  for (var hi = 0; hi < headerSection.rows.length; hi++) {
+    var row = headerSection.rows[hi];
+    if (row.index !== undefined) currentRow = row.index - 1;
+    outRow = currentRow;
+    writeRow(ws, merges, outRow, row, allStyles);
+    if (row.height) rowHeights.push({ r: outRow, hpt: row.height });
+    currentRow++;
+  }
+  outRow = currentRow;
+
+  for (var di = 0; di < flatData.length; di++) {
+    var entry = flatData[di];
+    var type = entry.type || "row";
+
+    if (type === "row") {
+      var cells = resolveCellPositions(rowTemplate.cells);
+      for (var ci2 = 0; ci2 < cells.length; ci2++) {
+        var cell = cells[ci2].cell;
+        var c = cells[ci2].col;
+        var ref = XLSX.utils.encode_cell({ r: outRow, c: c });
+        var style = toXlsxStyle(allStyles.get(cell.styleId));
+        var val = "";
+        var colHeader = columnHeaders[c];
+        if (colHeader && colHeader in entry) val = String(entry[colHeader] != null ? entry[colHeader] : "");
+        var cellType = "s";
+        var cellVal = val;
+        if (val !== "" && !isNaN(Number(val))) { cellType = "n"; cellVal = Number(val); }
+        ws[ref] = { t: cellType, v: cellVal, s: style };
+        if (cell.mergeAcross > 0 || cell.mergeDown > 0) {
+          merges.push({ s: { r: outRow, c: c }, e: { r: outRow + cell.mergeDown, c: c + cell.mergeAcross } });
+        }
+      }
+      if (rowTemplate.height) rowHeights.push({ r: outRow, hpt: rowTemplate.height });
+    } else if (type === "summary" && summaryTemplate) {
+      var cells2 = resolveCellPositions(summaryTemplate.cells);
+      for (var si = 0; si < cells2.length; si++) {
+        var cell2 = cells2[si].cell;
+        var c2 = cells2[si].col;
+        var ref2 = XLSX.utils.encode_cell({ r: outRow, c: c2 });
+        var style2 = toXlsxStyle(allStyles.get(cell2.styleId));
+        var val2 = cell2.value;
+        if (cell2.mergeAcross > 0) val2 = entry.label || entry.text || cell2.value;
+        ws[ref2] = { t: "s", v: val2, s: style2 };
+        if (cell2.mergeAcross > 0 || cell2.mergeDown > 0) {
+          merges.push({ s: { r: outRow, c: c2 }, e: { r: outRow + cell2.mergeDown, c: c2 + cell2.mergeAcross } });
+        }
+      }
+      if (summaryTemplate.height) rowHeights.push({ r: outRow, hpt: summaryTemplate.height });
+    }
+    outRow++;
+  }
+
+  for (var fi = 0; fi < footerSection.rows.length; fi++) {
+    var frow = footerSection.rows[fi];
+    writeRow(ws, merges, outRow, frow, allStyles);
+    if (frow.height) rowHeights.push({ r: outRow, hpt: frow.height });
+    outRow++;
+  }
+
+  var maxCol = 9;
+  ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(outRow - 1, 0), c: maxCol } });
+  ws["!merges"] = merges;
+  ws["!cols"] = [];
+  for (var cc = 0; cc <= maxCol; cc++) {
+    ws["!cols"].push({ wch: Math.round((colWidthMap.get(cc) || 75) / 7) });
+  }
+  ws["!rows"] = [];
+  for (var ri = 0; ri < rowHeights.length; ri++) {
+    var rh = rowHeights[ri];
+    if (!ws["!rows"][rh.r]) ws["!rows"][rh.r] = {};
+    ws["!rows"][rh.r].hpt = rh.hpt;
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  return wb;
+}
+
+function downloadWorkbook(wb, fileName) {
+  XLSX.writeFile(wb, fileName + ".xlsx");
+}
+
+// ─── Main Logic ─────────────────────────────────────────────
+
+function generateFromJson(jsonStr, fileName) {
+  var parsed = JSON.parse(jsonStr);
+  var jsonData, templateVars = {};
+  if (parsed && !Array.isArray(parsed) && parsed.data) {
+    templateVars = parsed.vars || {};
+    jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+  } else {
+    jsonData = Array.isArray(parsed) ? parsed : [parsed];
+  }
+  var wb = buildXlsxFromSections({
+    stylesXml: DEFAULT_STYLES_XML,
+    headerXml: DEFAULT_HEADER_XML,
+    rowXml: DEFAULT_ROW_XML,
+    summaryXml: DEFAULT_SUMMARY_XML,
+    footerXml: DEFAULT_FOOTER_XML,
+    jsonData: jsonData,
+    templateVars: templateVars
+  });
+  downloadWorkbook(wb, fileName || "output");
+}
+
+// ─── URL Auto Download ──────────────────────────────────────
+
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var jsonParam = params.get("json");
+
+  if (jsonParam) {
+    document.getElementById("app").innerHTML = '<div class="msg">엑셀 파일을 생성 중입니다...</div>';
+    setTimeout(function() {
+      try {
+        var decoded = decodeURIComponent(jsonParam);
+        var fileName = params.get("filename") || "output";
+        generateFromJson(decoded, fileName);
+        document.getElementById("app").innerHTML = '<div class="msg" style="color:green">✅ 다운로드 완료! (' + fileName + '.xlsx)</div>';
+      } catch (err) {
+        document.getElementById("app").innerHTML = '<div class="msg" style="color:red">❌ 오류: ' + (err.message || err) + '</div>';
+      }
+    }, 300);
+    return;
+  }
+
+  // ─── Manual UI ──────────────────────────────────────────────
+  document.getElementById("app").innerHTML =
+    '<h1>서식 보존 엑셀 생성</h1>' +
+    '<p style="text-align:center;color:#666;margin-bottom:1rem;font-size:.85rem">XML 서식 + JSON → Excel (.xlsx)</p>' +
+    '<div class="card"><label>JSON 데이터</label>' +
+    '<textarea id="jsonInput" rows="12">' + DEFAULT_JSON.replace(/</g,"&lt;") + '</textarea></div>' +
+    '<div class="actions">' +
+    '<button class="primary" onclick="handleGenerate()">⬇ 엑셀 다운로드 (.xlsx)</button>' +
+    '</div>';
+})();
+
+function handleGenerate() {
+  try {
+    var json = document.getElementById("jsonInput").value;
+    generateFromJson(json, "output");
+  } catch (err) {
+    alert("오류: " + (err.message || err));
+  }
+}
+</script>
+</body>
+</html>
