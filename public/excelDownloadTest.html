@@ -506,7 +506,9 @@ function buildXlsxFromSections(params) {
         var style = toXlsxStyle(allStyles.get(cell.styleId));
         var val = "";
         var colHeader = columnHeaders[c];
+        var quantityAlias = colHeader === "수량" ? "사용량" : (colHeader === "사용량" ? "수량" : undefined);
         if (colHeader && colHeader in entry) val = String(entry[colHeader] != null ? entry[colHeader] : "");
+        else if (quantityAlias && quantityAlias in entry) val = String(entry[quantityAlias] != null ? entry[quantityAlias] : "");
         var cellType = "s";
         var cellVal = val;
         if (val !== "" && !isNaN(Number(val))) { cellType = "n"; cellVal = Number(val); }

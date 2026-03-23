@@ -547,8 +547,11 @@ export function buildXlsxFromSections(params: {
 
         let val = "";
         const colHeader = columnHeaders[col];
+        const quantityAlias = colHeader === "수량" ? "사용량" : colHeader === "사용량" ? "수량" : undefined;
         if (colHeader && colHeader in entry) {
           val = String(entry[colHeader] ?? "");
+        } else if (quantityAlias && quantityAlias in entry) {
+          val = String(entry[quantityAlias] ?? "");
         }
 
         let cellType = "s";
