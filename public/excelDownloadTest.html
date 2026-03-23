@@ -605,15 +605,16 @@ function generateFromJson(jsonStr, fileName, opts) {
   var jsonParam = params.get("json");
 
   if (jsonParam) {
-    document.getElementById("app").innerHTML = '<div class="msg">엑셀 파일을 생성 중입니다...</div>';
+    document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">⏳</div><div style="font-size:1.1rem;color:#333">엑셀 파일을 생성 중입니다...</div></div></div>';
     setTimeout(function() {
       try {
         var decoded = decodeURIComponent(jsonParam);
         var fileName = params.get("filename") || "output";
         generateFromJson(decoded, fileName);
-        document.getElementById("app").innerHTML = '<div class="msg" style="color:green">✅ 다운로드 완료! (' + fileName + '.xlsx)</div>';
+        document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">✅</div><div style="font-size:1.1rem;color:#2e7d32">다운로드 완료! (' + fileName + '.xlsx)</div><div style="font-size:.85rem;color:#888;margin-top:8px">2초 후 창이 닫힙니다...</div></div></div>';
+        setTimeout(function() { window.close(); }, 2000);
       } catch (err) {
-        document.getElementById("app").innerHTML = '<div class="msg" style="color:red">❌ 오류: ' + (err.message || err) + '</div>';
+        document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">❌</div><div style="font-size:1.1rem;color:#c62828">오류: ' + (err.message || err) + '</div></div></div>';
       }
     }, 300);
     return;
