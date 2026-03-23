@@ -432,6 +432,9 @@ function flattenJsonData(data) {
 }
 
 function buildXlsxFromSections(params) {
+  var XLSX = window.XLSX;
+  if (!XLSX) throw new Error("xlsx.bundle.js 로드 실패");
+
   var stylesXml = params.stylesXml;
   var headerXml = params.headerXml;
   var rowXml = params.rowXml;
