@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Excel Generator</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="./xlsx.bundle.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;background:#f8f9fa;display:flex;justify-content:center;padding:2rem}
@@ -432,6 +432,9 @@ function flattenJsonData(data) {
 }
 
 function buildXlsxFromSections(params) {
+  var XLSX = window.XLSX;
+  if (!XLSX) throw new Error("xlsx.bundle.js 로드 실패");
+
   var stylesXml = params.stylesXml;
   var headerXml = params.headerXml;
   var rowXml = params.rowXml;
@@ -553,6 +556,8 @@ function buildXlsxFromSections(params) {
 }
 
 function downloadWorkbook(wb, fileName) {
+  var XLSX = window.XLSX;
+  if (!XLSX) throw new Error("xlsx.bundle.js 로드 실패");
   XLSX.writeFile(wb, fileName + ".xlsx");
 }
 
