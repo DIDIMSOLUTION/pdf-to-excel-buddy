@@ -556,6 +556,8 @@ function buildXlsxFromSections(params) {
 }
 
 function downloadWorkbook(wb, fileName) {
+  var XLSX = window.XLSX;
+  if (!XLSX) throw new Error("xlsx.bundle.js 로드 실패");
   XLSX.writeFile(wb, fileName + ".xlsx");
 }
 
