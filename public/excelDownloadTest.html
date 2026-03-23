@@ -8,17 +8,22 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;background:#f8f9fa;display:flex;justify-content:center;padding:2rem}
-.wrap{max-width:700px;width:100%}
-h1{text-align:center;margin-bottom:1rem;font-size:1.5rem}
+.wrap{max-width:800px;width:100%}
+h1{text-align:center;margin-bottom:.5rem;font-size:1.5rem}
+.subtitle{text-align:center;color:#666;margin-bottom:1rem;font-size:.85rem}
 .card{background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:1.2rem;margin-bottom:1rem}
-label{display:block;font-size:.75rem;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:.3rem}
+.card h2{font-size:.9rem;margin-bottom:.8rem;color:#333}
+label{display:block;font-size:.75rem;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:.3rem;margin-top:.6rem}
 textarea{width:100%;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-size:.7rem;font-family:monospace;resize:vertical}
 .actions{display:flex;gap:.5rem}
-button{flex:1;padding:.7rem;border:none;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer}
-.primary{background:#2563eb;color:#fff}
-.outline{background:#fff;border:1px solid #ccc;flex:0}
+button{padding:.7rem;border:none;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer}
+.primary{background:#2563eb;color:#fff;flex:1}
+.outline{background:#fff;border:1px solid #ccc}
 .msg{text-align:center;padding:2rem;font-size:1.1rem;color:#333}
-.collapsible-btn{width:100%;text-align:left;background:none;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-size:.75rem;font-weight:700;color:#666;cursor:pointer;flex:1}
+.collapsible-btn{width:100%;text-align:left;background:none;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-size:.75rem;font-weight:700;color:#666;cursor:pointer}
+.collapsible-content{display:none;margin-top:.5rem}
+.collapsible-content.open{display:block}
+.section-group{margin-bottom:.5rem}
 </style>
 </head>
 <body>
@@ -563,7 +568,14 @@ function downloadWorkbook(wb, fileName) {
 
 // ─── Main Logic ─────────────────────────────────────────────
 
-function generateFromJson(jsonStr, fileName) {
+function generateFromJson(jsonStr, fileName, opts) {
+  opts = opts || {};
+  var stylesXml = opts.stylesXml || DEFAULT_STYLES_XML;
+  var headerXml = opts.headerXml || DEFAULT_HEADER_XML;
+  var rowXml = opts.rowXml || DEFAULT_ROW_XML;
+  var summaryXml = opts.summaryXml || DEFAULT_SUMMARY_XML;
+  var footerXml = opts.footerXml || DEFAULT_FOOTER_XML;
+
   var parsed = JSON.parse(jsonStr);
   var jsonData, templateVars = {};
   if (parsed && !Array.isArray(parsed) && parsed.data) {
@@ -573,11 +585,11 @@ function generateFromJson(jsonStr, fileName) {
     jsonData = Array.isArray(parsed) ? parsed : [parsed];
   }
   var wb = buildXlsxFromSections({
-    stylesXml: DEFAULT_STYLES_XML,
-    headerXml: DEFAULT_HEADER_XML,
-    rowXml: DEFAULT_ROW_XML,
-    summaryXml: DEFAULT_SUMMARY_XML,
-    footerXml: DEFAULT_FOOTER_XML,
+    stylesXml: stylesXml,
+    headerXml: headerXml,
+    rowXml: rowXml,
+    summaryXml: summaryXml,
+    footerXml: footerXml,
     jsonData: jsonData,
     templateVars: templateVars
   });
@@ -606,23 +618,85 @@ function generateFromJson(jsonStr, fileName) {
   }
 
   // ─── Manual UI ──────────────────────────────────────────────
+  var esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+
   document.getElementById("app").innerHTML =
     '<h1>서식 보존 엑셀 생성</h1>' +
-    '<p style="text-align:center;color:#666;margin-bottom:1rem;font-size:.85rem">XML 서식 + JSON → Excel (.xlsx)</p>' +
-    '<div class="card"><label>JSON 데이터</label>' +
-    '<textarea id="jsonInput" rows="12">' + DEFAULT_JSON.replace(/</g,"&lt;") + '</textarea></div>' +
+    '<p class="subtitle">XML 서식 + JSON → Excel (.xlsx)</p>' +
+
+    // Template sections card
+    '<div class="card">' +
+    '<h2>서식 설정 (SpreadsheetML XML)</h2>' +
+
+    // Styles (collapsible)
+    '<div class="section-group">' +
+    '<button class="collapsible-btn" onclick="toggleSection(\'styles\')">▶ 스타일 정의 (고급)</button>' +
+    '<div id="styles-section" class="collapsible-content">' +
+    '<textarea id="stylesInput" rows="10">' + esc(DEFAULT_STYLES_XML) + '</textarea>' +
+    '</div></div>' +
+
+    '<label>Header</label>' +
+    '<textarea id="headerInput" rows="8">' + esc(DEFAULT_HEADER_XML) + '</textarea>' +
+
+    '<label>Row (데이터 행 템플릿)</label>' +
+    '<textarea id="rowInput" rows="5">' + esc(DEFAULT_ROW_XML) + '</textarea>' +
+
+    '<label>Summary (소계 행 템플릿)</label>' +
+    '<textarea id="summaryInput" rows="4">' + esc(DEFAULT_SUMMARY_XML) + '</textarea>' +
+
+    '<label>Footer</label>' +
+    '<textarea id="footerInput" rows="5">' + esc(DEFAULT_FOOTER_XML) + '</textarea>' +
+    '</div>' +
+
+    // JSON data card
+    '<div class="card">' +
+    '<h2>데이터 입력 (JSON)</h2>' +
+    '<p style="font-size:.75rem;color:#888;margin-bottom:.5rem"><code>{ "vars": {...}, "data": [[...]] }</code> 형식 — <code>vars</code>의 키가 Header XML 내 <code>{{키}}</code>를 대치합니다.</p>' +
+    '<textarea id="jsonInput" rows="12">' + esc(DEFAULT_JSON) + '</textarea>' +
+    '</div>' +
+
+    // Actions
     '<div class="actions">' +
     '<button class="primary" onclick="handleGenerate()">⬇ 엑셀 다운로드 (.xlsx)</button>' +
+    '<button class="outline" onclick="handleReset()">초기화</button>' +
     '</div>';
 })();
+
+function toggleSection(id) {
+  var el = document.getElementById(id + '-section');
+  var btn = el.previousElementSibling || el.parentElement.querySelector('.collapsible-btn');
+  if (el.classList.contains('open')) {
+    el.classList.remove('open');
+    if (btn) btn.textContent = '▶ 스타일 정의 (고급)';
+  } else {
+    el.classList.add('open');
+    if (btn) btn.textContent = '▼ 스타일 정의 (고급)';
+  }
+}
 
 function handleGenerate() {
   try {
     var json = document.getElementById("jsonInput").value;
-    generateFromJson(json, "output");
+    var opts = {
+      stylesXml: document.getElementById("stylesInput").value,
+      headerXml: document.getElementById("headerInput").value,
+      rowXml: document.getElementById("rowInput").value,
+      summaryXml: document.getElementById("summaryInput").value,
+      footerXml: document.getElementById("footerInput").value
+    };
+    generateFromJson(json, "output", opts);
   } catch (err) {
     alert("오류: " + (err.message || err));
   }
+}
+
+function handleReset() {
+  document.getElementById("stylesInput").value = DEFAULT_STYLES_XML;
+  document.getElementById("headerInput").value = DEFAULT_HEADER_XML;
+  document.getElementById("rowInput").value = DEFAULT_ROW_XML;
+  document.getElementById("summaryInput").value = DEFAULT_SUMMARY_XML;
+  document.getElementById("footerInput").value = DEFAULT_FOOTER_XML;
+  document.getElementById("jsonInput").value = DEFAULT_JSON;
 }
 </script>
 </body>
