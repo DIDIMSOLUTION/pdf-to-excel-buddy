@@ -411,7 +411,23 @@ function buildXlsxFromSections(params) {
 function downloadWorkbook(wb, fileName) {
   var XLSX = window.XLSX;
   if (!XLSX) throw new Error("xlsx.bundle.js 로드 실패");
-  XLSX.writeFile(wb, fileName + ".xlsx");
+
+  // FileMaker WebViewer 환경 감지
+  if (window.FileMaker) {
+    // Base64로 변환하여 FileMaker에 전달
+    var wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+    try {
+      window.FileMaker.PerformScript("ExcelDownloadCallback", JSON.stringify({
+        fileName: fileName + ".xlsx",
+        base64: wbout
+      }));
+    } catch(e) {
+      // PerformScript 실패 시 일반 다운로드 시도
+      XLSX.writeFile(wb, fileName + ".xlsx");
+    }
+  } else {
+    XLSX.writeFile(wb, fileName + ".xlsx");
+  }
 }
 
 // ─── Main Logic ─────────────────────────────────────────────
