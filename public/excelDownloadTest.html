@@ -29,199 +29,34 @@ button{padding:.7rem;border:none;border-radius:6px;font-size:.9rem;font-weight:7
 <body>
 <div class="wrap" id="app"></div>
 <script>
-// ─── Default XML templates ─────────────────────────────────
-const DEFAULT_STYLES_XML = `<Style ss:ID="Default" ss:Name="Normal">
- <Alignment ss:Vertical="Center"/>
- <Borders/>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000"/>
- <Interior/><NumberFormat/><Protection/>
-</Style>
-<Style ss:ID="m34466542392">
- <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders><NumberFormat/>
-</Style>
-<Style ss:ID="s72">
- <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="20" ss:Color="#000000" ss:Bold="1"/>
- <NumberFormat/>
-</Style>
-<Style ss:ID="s73">
- <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
- <NumberFormat/>
-</Style>
-<Style ss:ID="s74">
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
- <NumberFormat/>
-</Style>
-<Style ss:ID="s75">
- <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
- <NumberFormat/>
-</Style>
-<Style ss:ID="s80">
- <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders><NumberFormat/>
-</Style>
-<Style ss:ID="s81">
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders><NumberFormat/>
-</Style>
-<Style ss:ID="s82">
- <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
- <NumberFormat ss:Format="yyyy\\-mm\\-dd;@"/>
-</Style>
-<Style ss:ID="s94">
- <Alignment ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
-</Style>
-<Style ss:ID="s95">
- <Alignment ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
-</Style>
-<Style ss:ID="s96">
- <Alignment ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
-</Style>
-<Style ss:ID="s107">
- <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
-</Style>
-<Style ss:ID="s109">
- <Borders>
-  <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
-</Style>
-<Style ss:ID="s111">
- <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
- <Borders>
-  <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
- </Borders>
- <Font ss:FontName="맑은 고딕" x:CharSet="129" ss:Size="12" ss:Color="#000000" ss:Bold="1"/>
-</Style>`;
+// ─── Default XML templates (fallback if template.json not found) ────
+var DEFAULT_STYLES_XML = '';
+var DEFAULT_HEADER_XML = '';
+var DEFAULT_ROW_XML = '';
+var DEFAULT_SUMMARY_XML = '';
+var DEFAULT_FOOTER_XML = '';
+var DEFAULT_JSON = '{\n  "vars": {},\n  "data": []\n}';
+var templateLoaded = false;
 
-const DEFAULT_HEADER_XML = `<Column ss:AutoFitWidth="0" ss:Width="41"/>
-<Column ss:AutoFitWidth="0" ss:Width="107"/>
-<Column ss:Index="5" ss:AutoFitWidth="0" ss:Width="43"/>
-<Column ss:AutoFitWidth="0" ss:Width="59"/>
-<Column ss:AutoFitWidth="0" ss:Width="86"/>
-<Column ss:Index="9" ss:AutoFitWidth="0" ss:Width="99"/>
-<Column ss:AutoFitWidth="0" ss:Width="63"/>
-<Row>
- <Cell ss:MergeAcross="9" ss:MergeDown="2" ss:StyleID="s72"><Data ss:Type="String">납품서</Data></Cell>
-</Row>
-<Row ss:Index="4" ss:AutoFitHeight="0" ss:Height="27">
- <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">경찰서 : {{경찰서}}</Data></Cell>
- <Cell ss:MergeAcross="1" ss:StyleID="s73"><Data ss:Type="String">품목 : {{품목}}</Data></Cell>
- <Cell ss:StyleID="s74"></Cell>
- <Cell ss:StyleID="s74"></Cell>
- <Cell ss:StyleID="s74"></Cell>
- <Cell ss:StyleID="s74"></Cell>
- <Cell ss:MergeAcross="1" ss:StyleID="s75"><Data ss:Type="String">{{연도차수}}</Data></Cell>
-</Row>
-<Row ss:AutoFitHeight="0" ss:Height="27">
- <Cell ss:StyleID="s80"><Data ss:Type="String">No</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">부서</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">이름</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">계급</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">성별</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">수량</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">구분</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">스펙</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">출고일</Data></Cell>
- <Cell ss:StyleID="s80"><Data ss:Type="String">비고</Data></Cell>
-</Row>
-<Row ss:AutoFitHeight="0" ss:Height="4">
- <Cell ss:MergeAcross="9" ss:StyleID="m34466542392"></Cell>
-</Row>`;
+// Load template from external JSON file
+function loadTemplate(url) {
+  return fetch(url).then(function(res) {
+    if (!res.ok) throw new Error('Template not found: ' + res.status);
+    return res.json();
+  }).then(function(tpl) {
+    if (tpl.styles) DEFAULT_STYLES_XML = tpl.styles;
+    if (tpl.header) DEFAULT_HEADER_XML = tpl.header;
+    if (tpl.row) DEFAULT_ROW_XML = tpl.row;
+    if (tpl.summary) DEFAULT_SUMMARY_XML = tpl.summary;
+    if (tpl.footer) DEFAULT_FOOTER_XML = tpl.footer;
+    templateLoaded = true;
+    return tpl;
+  });
+}
 
-const DEFAULT_ROW_XML = `<Row ss:AutoFitHeight="0" ss:Height="27">
- <Cell ss:StyleID="s80"><Data ss:Type="Number">1</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">부서</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">이름</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">계급</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">남</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="Number">1</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">구분</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">스펙</Data></Cell>
- <Cell ss:StyleID="s82"><Data ss:Type="DateTime">2025-11-28T00:00:00.000</Data></Cell>
- <Cell ss:StyleID="s81"><Data ss:Type="String">비고</Data></Cell>
-</Row>`;
-
-const DEFAULT_SUMMARY_XML = `<Row ss:AutoFitHeight="0" ss:Height="27">
- <Cell ss:MergeAcross="5" ss:StyleID="s107"><Data ss:Type="String">(부서계) : 1</Data></Cell>
- <Cell ss:StyleID="s95"></Cell>
- <Cell ss:StyleID="s95"></Cell>
- <Cell ss:StyleID="s96"></Cell>
- <Cell ss:StyleID="s94"></Cell>
-</Row>`;
-
-const DEFAULT_FOOTER_XML = `<Row ss:AutoFitHeight="0" ss:Height="12">
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
- <Cell ss:StyleID="s109"></Cell>
-</Row>
-<Row ss:AutoFitHeight="0" ss:Height="27">
- <Cell ss:MergeAcross="5" ss:StyleID="s111"><Data ss:Type="String">경찰서계 : 2</Data></Cell>
-</Row>`;
-
-const DEFAULT_JSON = `{
-  "vars": {"경찰서":"서울강남","품목":"동복","연도차수":"2025년 2차"},
-  "data": [
-    [
-      {"type":"row","No":"1","부서":"청문-감찰","이름":"서문륜","계급":"경감","성별":"남","수량":"1","구분":"","스펙":"무","출고일":"","비고":""},
-      {"type":"summary","label":"(부서계) : 1"}
-    ],
-    [
-      {"type":"row","No":"2","부서":"생안-교통","이름":"황정근","계급":"경감","성별":"남","수량":"1","구분":"","스펙":"무","출고일":"","비고":""},
-      {"type":"summary","label":"(부서계) : 1"}
-    ]
-  ]
-}`;
+// Determine template URL: ?template=xxx.json or default ./template.json
+var urlParams = new URLSearchParams(window.location.search);
+var templateUrl = urlParams.get('template') || './template.json';
 
 // ─── XML Parsing Engine ─────────────────────────────────────
 const SS = "urn:schemas-microsoft-com:office:spreadsheet";
@@ -598,6 +433,45 @@ function generateFromJson(jsonStr, fileName, opts) {
   downloadWorkbook(wb, fileName || "output");
 }
 
+// ─── postMessage listener (for POST-like data from other pages/FileMaker) ───
+
+window.addEventListener('message', function(event) {
+  try {
+    var msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    if (msg && msg.action === 'generate') {
+      showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
+      setTimeout(function() {
+        try {
+          var jsonStr = typeof msg.json === 'string' ? msg.json : JSON.stringify(msg.json);
+          var fileName = msg.filename || 'output';
+          var opts = {};
+          if (msg.template) {
+            if (msg.template.styles) opts.stylesXml = msg.template.styles;
+            if (msg.template.header) opts.headerXml = msg.template.header;
+            if (msg.template.row) opts.rowXml = msg.template.row;
+            if (msg.template.summary) opts.summaryXml = msg.template.summary;
+            if (msg.template.footer) opts.footerXml = msg.template.footer;
+          }
+          generateFromJson(jsonStr, fileName, opts);
+          showOverlay('✅', '다운로드 완료! (' + fileName + '.xlsx)', '#2e7d32', true);
+        } catch (err) {
+          showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
+        }
+      }, 300);
+    }
+  } catch (e) { /* ignore non-JSON messages */ }
+});
+
+function showOverlay(icon, text, color, autoClose) {
+  document.getElementById('app').innerHTML =
+    '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa">' +
+    '<div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">' + icon + '</div>' +
+    '<div style="font-size:1.1rem;color:' + color + '">' + text + '</div>' +
+    (autoClose ? '<div style="font-size:.85rem;color:#888;margin-top:8px">2초 후 창이 닫힙니다...</div>' : '') +
+    '</div></div>';
+  if (autoClose) setTimeout(function() { window.close(); }, 2000);
+}
+
 // ─── URL Auto Download ──────────────────────────────────────
 
 (function() {
@@ -605,27 +479,41 @@ function generateFromJson(jsonStr, fileName, opts) {
   var jsonParam = params.get("json");
 
   if (jsonParam) {
-    document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">⏳</div><div style="font-size:1.1rem;color:#333">엑셀 파일을 생성 중입니다...</div></div></div>';
-    setTimeout(function() {
-      try {
-        var decoded = decodeURIComponent(jsonParam);
-        var fileName = params.get("filename") || "output";
-        generateFromJson(decoded, fileName);
-        document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">✅</div><div style="font-size:1.1rem;color:#2e7d32">다운로드 완료! (' + fileName + '.xlsx)</div><div style="font-size:.85rem;color:#888;margin-top:8px">2초 후 창이 닫힙니다...</div></div></div>';
-        setTimeout(function() { window.close(); }, 2000);
-      } catch (err) {
-        document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">❌</div><div style="font-size:1.1rem;color:#c62828">오류: ' + (err.message || err) + '</div></div></div>';
-      }
-    }, 300);
+    showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
+    // Load template first, then generate
+    loadTemplate(templateUrl).catch(function() {
+      // template.json not found — use whatever defaults exist
+    }).then(function() {
+      setTimeout(function() {
+        try {
+          var decoded = decodeURIComponent(jsonParam);
+          var fileName = params.get("filename") || "output";
+          generateFromJson(decoded, fileName);
+          showOverlay('✅', '다운로드 완료! (' + fileName + '.xlsx)', '#2e7d32', true);
+        } catch (err) {
+          showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
+        }
+      }, 300);
+    });
     return;
   }
 
-  // ─── Manual UI ──────────────────────────────────────────────
+  // ─── Manual UI (no params) ─────────────────────────────────
+  loadTemplate(templateUrl).catch(function() {
+    // template.json not found — fields will be empty
+  }).then(function() {
+    renderUI();
+  });
+})();
+
+function renderUI() {
   var esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
 
   document.getElementById("app").innerHTML =
     '<h1>서식 보존 엑셀 생성</h1>' +
     '<p class="subtitle">XML 서식 + JSON → Excel (.xlsx)</p>' +
+    '<p class="subtitle" style="color:#2563eb;font-size:.75rem">서식은 <code>template.json</code> 파일에서 로드됩니다. ' +
+    (templateLoaded ? '✅ 로드 완료' : '⚠️ 파일 없음 (수동 입력)') + '</p>' +
 
     // Template sections card
     '<div class="card">' +
@@ -651,6 +539,17 @@ function generateFromJson(jsonStr, fileName, opts) {
     '<textarea id="footerInput" rows="5">' + esc(DEFAULT_FOOTER_XML) + '</textarea>' +
     '</div>' +
 
+    // Template file management
+    '<div class="card">' +
+    '<h2>서식 파일 관리</h2>' +
+    '<div class="actions" style="margin-bottom:.5rem">' +
+    '<button class="outline" style="flex:1" onclick="exportTemplate()">📤 서식 JSON 내보내기</button>' +
+    '<button class="outline" style="flex:1" onclick="document.getElementById(\'tplFileInput\').click()">📥 서식 JSON 불러오기</button>' +
+    '<input type="file" id="tplFileInput" accept=".json" style="display:none" onchange="importTemplate(this)">' +
+    '</div>' +
+    '<p style="font-size:.7rem;color:#888">내보낸 JSON 파일을 서버에 <code>template.json</code>으로 저장하면 기본 서식으로 사용됩니다.</p>' +
+    '</div>' +
+
     // JSON data card
     '<div class="card">' +
     '<h2>데이터 입력 (JSON)</h2>' +
@@ -658,12 +557,34 @@ function generateFromJson(jsonStr, fileName, opts) {
     '<textarea id="jsonInput" rows="12">' + esc(DEFAULT_JSON) + '</textarea>' +
     '</div>' +
 
+    // postMessage usage guide
+    '<div class="card">' +
+    '<h2>외부 호출 방법 (postMessage)</h2>' +
+    '<p style="font-size:.75rem;color:#888;margin-bottom:.5rem">URL 길이 제한 없이 데이터를 전달할 수 있습니다.</p>' +
+    '<pre style="background:#f1f3f5;padding:.5rem;border-radius:6px;font-size:.65rem;overflow-x:auto;white-space:pre-wrap">' +
+    '// 다른 웹페이지에서\n' +
+    'var w = window.open("excelDownloadTest.html");\n' +
+    'w.onload = function() {\n' +
+    '  w.postMessage({\n' +
+    '    action: "generate",\n' +
+    '    json: { vars: {...}, data: [[...]] },\n' +
+    '    filename: "output"\n' +
+    '  }, "*");\n' +
+    '};\n\n' +
+    '// FileMaker WebViewer에서\n' +
+    'FileMaker.PerformScript("ExcelDownload", JSON.stringify({\n' +
+    '  action: "generate",\n' +
+    '  json: { vars: {...}, data: [[...]] },\n' +
+    '  filename: "output"\n' +
+    '}));</pre>' +
+    '</div>' +
+
     // Actions
     '<div class="actions">' +
     '<button class="primary" onclick="handleGenerate()">⬇ 엑셀 다운로드 (.xlsx)</button>' +
     '<button class="outline" onclick="handleReset()">초기화</button>' +
     '</div>';
-})();
+}
 
 function toggleSection(id) {
   var el = document.getElementById(id + '-section');
@@ -694,12 +615,46 @@ function handleGenerate() {
 }
 
 function handleReset() {
-  document.getElementById("stylesInput").value = DEFAULT_STYLES_XML;
-  document.getElementById("headerInput").value = DEFAULT_HEADER_XML;
-  document.getElementById("rowInput").value = DEFAULT_ROW_XML;
-  document.getElementById("summaryInput").value = DEFAULT_SUMMARY_XML;
-  document.getElementById("footerInput").value = DEFAULT_FOOTER_XML;
-  document.getElementById("jsonInput").value = DEFAULT_JSON;
+  loadTemplate(templateUrl).catch(function() {}).then(function() {
+    renderUI();
+  });
+}
+
+function exportTemplate() {
+  var tpl = {
+    styles: document.getElementById("stylesInput").value,
+    header: document.getElementById("headerInput").value,
+    row: document.getElementById("rowInput").value,
+    summary: document.getElementById("summaryInput").value,
+    footer: document.getElementById("footerInput").value
+  };
+  var blob = new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'template.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importTemplate(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var tpl = JSON.parse(e.target.result);
+      if (tpl.styles) document.getElementById("stylesInput").value = tpl.styles;
+      if (tpl.header) document.getElementById("headerInput").value = tpl.header;
+      if (tpl.row) document.getElementById("rowInput").value = tpl.row;
+      if (tpl.summary) document.getElementById("summaryInput").value = tpl.summary;
+      if (tpl.footer) document.getElementById("footerInput").value = tpl.footer;
+      alert('서식 불러오기 완료!');
+    } catch (err) {
+      alert('JSON 파일 파싱 오류: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 </script>
 </body>
