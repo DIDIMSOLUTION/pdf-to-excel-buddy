@@ -441,6 +441,42 @@ function generateFromJson(jsonStr, fileName, opts) {
   downloadWorkbook(wb, fileName || "output");
 }
 
+// ─── Global function for FileMaker WebViewer ───
+// FileMaker에서: Perform JavaScript In Web Viewer ["webViewer"; "generateExcel"; $json; $filename]
+window.generateExcel = function(jsonStr, fileName) {
+  showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
+  setTimeout(function() {
+    try {
+      generateFromJson(jsonStr, fileName || 'output');
+      showOverlay('✅', '다운로드 완료! (' + (fileName || 'output') + '.xlsx)', '#2e7d32', true);
+    } catch (err) {
+      showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
+    }
+  }, 300);
+};
+
+// ─── Global function with template override ───
+window.generateExcelWithTemplate = function(jsonStr, fileName, templateJsonStr) {
+  showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
+  setTimeout(function() {
+    try {
+      var opts = {};
+      if (templateJsonStr) {
+        var tpl = typeof templateJsonStr === 'string' ? JSON.parse(templateJsonStr) : templateJsonStr;
+        if (tpl.styles) opts.stylesXml = tpl.styles;
+        if (tpl.header) opts.headerXml = tpl.header;
+        if (tpl.row) opts.rowXml = tpl.row;
+        if (tpl.summary) opts.summaryXml = tpl.summary;
+        if (tpl.footer) opts.footerXml = tpl.footer;
+      }
+      generateFromJson(jsonStr, fileName || 'output', opts);
+      showOverlay('✅', '다운로드 완료! (' + (fileName || 'output') + '.xlsx)', '#2e7d32', true);
+    } catch (err) {
+      showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
+    }
+  }, 300);
+};
+
 // ─── postMessage listener ───
 window.addEventListener('message', function(event) {
   try {
