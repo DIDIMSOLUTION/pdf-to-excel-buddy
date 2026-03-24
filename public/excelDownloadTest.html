@@ -668,10 +668,29 @@ function renderUI() {
 
     // postMessage usage guide
     '<div class="card">' +
-    '<h2>외부 호출 방법 (postMessage)</h2>' +
-    '<p style="font-size:.75rem;color:#888;margin-bottom:.5rem">URL 길이 제한 없이 데이터를 전달할 수 있습니다.</p>' +
+    '<h2>외부 호출 방법</h2>' +
+
+    '<label>방법 1: FileMaker WebViewer (권장 - POST 대용량)</label>' +
+    '<p style="font-size:.7rem;color:#888;margin-bottom:.3rem">URL 길이 제한 없이 JSON을 직접 전달합니다.</p>' +
     '<pre style="background:#f1f3f5;padding:.5rem;border-radius:6px;font-size:.65rem;overflow-x:auto;white-space:pre-wrap">' +
-    '// 다른 웹페이지에서\n' +
+    '// 1단계: WebViewer에 HTML 로드\n' +
+    'Set Web Viewer ["webViewer"; "https://서버/excelDownloadTest.html"]\n\n' +
+    '// 2단계: JS 함수 호출 (JSON 크기 제한 없음)\n' +
+    'Perform JavaScript In Web Viewer [\n' +
+    '  "webViewer";\n' +
+    '  "generateExcel";\n' +
+    '  $json;    // {"vars":{...}, "data":[...]}\n' +
+    '  $filename // "출력파일명"\n' +
+    ']\n\n' +
+    '// 서식도 함께 전달하려면:\n' +
+    'Perform JavaScript In Web Viewer [\n' +
+    '  "webViewer";\n' +
+    '  "generateExcelWithTemplate";\n' +
+    '  $json; $filename; $templateJson\n' +
+    ']</pre>' +
+
+    '<label style="margin-top:.8rem">방법 2: postMessage (다른 웹페이지에서)</label>' +
+    '<pre style="background:#f1f3f5;padding:.5rem;border-radius:6px;font-size:.65rem;overflow-x:auto;white-space:pre-wrap">' +
     'var w = window.open("excelDownloadTest.html");\n' +
     'w.onload = function() {\n' +
     '  w.postMessage({\n' +
@@ -679,13 +698,7 @@ function renderUI() {
     '    json: { vars: {...}, data: [[...]] },\n' +
     '    filename: "output"\n' +
     '  }, "*");\n' +
-    '};\n\n' +
-    '// FileMaker WebViewer에서\n' +
-    'FileMaker.PerformScript("ExcelDownload", JSON.stringify({\n' +
-    '  action: "generate",\n' +
-    '  json: { vars: {...}, data: [[...]] },\n' +
-    '  filename: "output"\n' +
-    '}));</pre>' +
+    '};</pre>' +
     '</div>' +
 
     // Actions
