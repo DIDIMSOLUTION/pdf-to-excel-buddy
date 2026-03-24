@@ -338,8 +338,12 @@ function buildXlsxFromSections(params) {
   }
   outRow = currentRow;
 
-  for (var di = 0; di < flatData.length; di++) {
-    var entry = flatData[di];
+  // Separate footer entries from data
+  var footerEntries = flatData.filter(function(e) { return e && e.type === "footer"; });
+  var nonFooterData = flatData.filter(function(e) { return !e || e.type !== "footer"; });
+
+  for (var di = 0; di < nonFooterData.length; di++) {
+    var entry = nonFooterData[di];
     if (!entry || typeof entry !== "object") continue;
     var type = entry.type || "row";
 
@@ -383,9 +387,19 @@ function buildXlsxFromSections(params) {
     outRow++;
   }
 
+  // Footer rows - replace label from data if available
+  var footerLabel = footerEntries.length > 0 ? (footerEntries[0].label || "") : "";
   for (var fi = 0; fi < footerSection.rows.length; fi++) {
     var frow = footerSection.rows[fi];
-    writeRow(ws, merges, outRow, frow, allStyles);
+    if (footerLabel) {
+      var modifiedRow = { cells: frow.cells.map(function(cell) {
+        if (cell.mergeAcross > 0 && cell.value) return Object.assign({}, cell, { value: footerLabel });
+        return cell;
+      }), height: frow.height, index: frow.index };
+      writeRow(ws, merges, outRow, modifiedRow, allStyles);
+    } else {
+      writeRow(ws, merges, outRow, frow, allStyles);
+    }
     if (frow.height) rowHeights.push({ r: outRow, hpt: frow.height });
     outRow++;
   }
