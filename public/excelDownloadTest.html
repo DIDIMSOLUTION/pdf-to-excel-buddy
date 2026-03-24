@@ -264,15 +264,17 @@ function replaceTemplateVars(xml, vars) {
 }
 
 function flattenJsonData(data) {
+  if (!Array.isArray(data)) data = [data];
   var flat = [];
   for (var i = 0; i < data.length; i++) {
     var item = data[i];
     if (Array.isArray(item)) {
-      var rows = item.filter(function(e) { return e.type === "row" || !e.type; });
-      var others = item.filter(function(e) { return e.type && e.type !== "row"; });
+      var objs = item.filter(function(e) { return e && typeof e === "object" && !Array.isArray(e); });
+      var rows = objs.filter(function(e) { return e.type === "row" || !e.type; });
+      var others = objs.filter(function(e) { return e.type && e.type !== "row"; });
       rows.sort(function(a, b) { return (parseInt(a.No || "0", 10)) - (parseInt(b.No || "0", 10)); });
       flat = flat.concat(rows, others);
-    } else {
+    } else if (item && typeof item === "object") {
       flat.push(item);
     }
   }
@@ -338,6 +340,7 @@ function buildXlsxFromSections(params) {
 
   for (var di = 0; di < flatData.length; di++) {
     var entry = flatData[di];
+    if (!entry || typeof entry !== "object") continue;
     var type = entry.type || "row";
 
     if (type === "row") {
