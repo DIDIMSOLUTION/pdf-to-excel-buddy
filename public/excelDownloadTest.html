@@ -340,6 +340,7 @@ function buildXlsxFromSections(params) {
 
   for (var di = 0; di < flatData.length; di++) {
     var entry = flatData[di];
+    if (!entry || typeof entry !== "object") continue;
     var type = entry.type || "row";
 
     if (type === "row") {
