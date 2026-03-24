@@ -433,6 +433,45 @@ function generateFromJson(jsonStr, fileName, opts) {
   downloadWorkbook(wb, fileName || "output");
 }
 
+// ─── postMessage listener (for POST-like data from other pages/FileMaker) ───
+
+window.addEventListener('message', function(event) {
+  try {
+    var msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    if (msg && msg.action === 'generate') {
+      showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
+      setTimeout(function() {
+        try {
+          var jsonStr = typeof msg.json === 'string' ? msg.json : JSON.stringify(msg.json);
+          var fileName = msg.filename || 'output';
+          var opts = {};
+          if (msg.template) {
+            if (msg.template.styles) opts.stylesXml = msg.template.styles;
+            if (msg.template.header) opts.headerXml = msg.template.header;
+            if (msg.template.row) opts.rowXml = msg.template.row;
+            if (msg.template.summary) opts.summaryXml = msg.template.summary;
+            if (msg.template.footer) opts.footerXml = msg.template.footer;
+          }
+          generateFromJson(jsonStr, fileName, opts);
+          showOverlay('✅', '다운로드 완료! (' + fileName + '.xlsx)', '#2e7d32', true);
+        } catch (err) {
+          showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
+        }
+      }, 300);
+    }
+  } catch (e) { /* ignore non-JSON messages */ }
+});
+
+function showOverlay(icon, text, color, autoClose) {
+  document.getElementById('app').innerHTML =
+    '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa">' +
+    '<div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">' + icon + '</div>' +
+    '<div style="font-size:1.1rem;color:' + color + '">' + text + '</div>' +
+    (autoClose ? '<div style="font-size:.85rem;color:#888;margin-top:8px">2초 후 창이 닫힙니다...</div>' : '') +
+    '</div></div>';
+  if (autoClose) setTimeout(function() { window.close(); }, 2000);
+}
+
 // ─── URL Auto Download ──────────────────────────────────────
 
 (function() {
@@ -440,27 +479,41 @@ function generateFromJson(jsonStr, fileName, opts) {
   var jsonParam = params.get("json");
 
   if (jsonParam) {
-    document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">⏳</div><div style="font-size:1.1rem;color:#333">엑셀 파일을 생성 중입니다...</div></div></div>';
-    setTimeout(function() {
-      try {
-        var decoded = decodeURIComponent(jsonParam);
-        var fileName = params.get("filename") || "output";
-        generateFromJson(decoded, fileName);
-        document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">✅</div><div style="font-size:1.1rem;color:#2e7d32">다운로드 완료! (' + fileName + '.xlsx)</div><div style="font-size:.85rem;color:#888;margin-top:8px">2초 후 창이 닫힙니다...</div></div></div>';
-        setTimeout(function() { window.close(); }, 2000);
-      } catch (err) {
-        document.getElementById("app").innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa"><div style="text-align:center"><div style="font-size:2rem;margin-bottom:12px">❌</div><div style="font-size:1.1rem;color:#c62828">오류: ' + (err.message || err) + '</div></div></div>';
-      }
-    }, 300);
+    showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
+    // Load template first, then generate
+    loadTemplate(templateUrl).catch(function() {
+      // template.json not found — use whatever defaults exist
+    }).then(function() {
+      setTimeout(function() {
+        try {
+          var decoded = decodeURIComponent(jsonParam);
+          var fileName = params.get("filename") || "output";
+          generateFromJson(decoded, fileName);
+          showOverlay('✅', '다운로드 완료! (' + fileName + '.xlsx)', '#2e7d32', true);
+        } catch (err) {
+          showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
+        }
+      }, 300);
+    });
     return;
   }
 
-  // ─── Manual UI ──────────────────────────────────────────────
+  // ─── Manual UI (no params) ─────────────────────────────────
+  loadTemplate(templateUrl).catch(function() {
+    // template.json not found — fields will be empty
+  }).then(function() {
+    renderUI();
+  });
+})();
+
+function renderUI() {
   var esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
 
   document.getElementById("app").innerHTML =
     '<h1>서식 보존 엑셀 생성</h1>' +
     '<p class="subtitle">XML 서식 + JSON → Excel (.xlsx)</p>' +
+    '<p class="subtitle" style="color:#2563eb;font-size:.75rem">서식은 <code>template.json</code> 파일에서 로드됩니다. ' +
+    (templateLoaded ? '✅ 로드 완료' : '⚠️ 파일 없음 (수동 입력)') + '</p>' +
 
     // Template sections card
     '<div class="card">' +
@@ -486,6 +539,17 @@ function generateFromJson(jsonStr, fileName, opts) {
     '<textarea id="footerInput" rows="5">' + esc(DEFAULT_FOOTER_XML) + '</textarea>' +
     '</div>' +
 
+    // Template file management
+    '<div class="card">' +
+    '<h2>서식 파일 관리</h2>' +
+    '<div class="actions" style="margin-bottom:.5rem">' +
+    '<button class="outline" style="flex:1" onclick="exportTemplate()">📤 서식 JSON 내보내기</button>' +
+    '<button class="outline" style="flex:1" onclick="document.getElementById(\'tplFileInput\').click()">📥 서식 JSON 불러오기</button>' +
+    '<input type="file" id="tplFileInput" accept=".json" style="display:none" onchange="importTemplate(this)">' +
+    '</div>' +
+    '<p style="font-size:.7rem;color:#888">내보낸 JSON 파일을 서버에 <code>template.json</code>으로 저장하면 기본 서식으로 사용됩니다.</p>' +
+    '</div>' +
+
     // JSON data card
     '<div class="card">' +
     '<h2>데이터 입력 (JSON)</h2>' +
@@ -493,12 +557,34 @@ function generateFromJson(jsonStr, fileName, opts) {
     '<textarea id="jsonInput" rows="12">' + esc(DEFAULT_JSON) + '</textarea>' +
     '</div>' +
 
+    // postMessage usage guide
+    '<div class="card">' +
+    '<h2>외부 호출 방법 (postMessage)</h2>' +
+    '<p style="font-size:.75rem;color:#888;margin-bottom:.5rem">URL 길이 제한 없이 데이터를 전달할 수 있습니다.</p>' +
+    '<pre style="background:#f1f3f5;padding:.5rem;border-radius:6px;font-size:.65rem;overflow-x:auto;white-space:pre-wrap">' +
+    '// 다른 웹페이지에서\n' +
+    'var w = window.open("excelDownloadTest.html");\n' +
+    'w.onload = function() {\n' +
+    '  w.postMessage({\n' +
+    '    action: "generate",\n' +
+    '    json: { vars: {...}, data: [[...]] },\n' +
+    '    filename: "output"\n' +
+    '  }, "*");\n' +
+    '};\n\n' +
+    '// FileMaker WebViewer에서\n' +
+    'FileMaker.PerformScript("ExcelDownload", JSON.stringify({\n' +
+    '  action: "generate",\n' +
+    '  json: { vars: {...}, data: [[...]] },\n' +
+    '  filename: "output"\n' +
+    '}));</pre>' +
+    '</div>' +
+
     // Actions
     '<div class="actions">' +
     '<button class="primary" onclick="handleGenerate()">⬇ 엑셀 다운로드 (.xlsx)</button>' +
     '<button class="outline" onclick="handleReset()">초기화</button>' +
     '</div>';
-})();
+}
 
 function toggleSection(id) {
   var el = document.getElementById(id + '-section');
@@ -529,12 +615,46 @@ function handleGenerate() {
 }
 
 function handleReset() {
-  document.getElementById("stylesInput").value = DEFAULT_STYLES_XML;
-  document.getElementById("headerInput").value = DEFAULT_HEADER_XML;
-  document.getElementById("rowInput").value = DEFAULT_ROW_XML;
-  document.getElementById("summaryInput").value = DEFAULT_SUMMARY_XML;
-  document.getElementById("footerInput").value = DEFAULT_FOOTER_XML;
-  document.getElementById("jsonInput").value = DEFAULT_JSON;
+  loadTemplate(templateUrl).catch(function() {}).then(function() {
+    renderUI();
+  });
+}
+
+function exportTemplate() {
+  var tpl = {
+    styles: document.getElementById("stylesInput").value,
+    header: document.getElementById("headerInput").value,
+    row: document.getElementById("rowInput").value,
+    summary: document.getElementById("summaryInput").value,
+    footer: document.getElementById("footerInput").value
+  };
+  var blob = new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'template.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importTemplate(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var tpl = JSON.parse(e.target.result);
+      if (tpl.styles) document.getElementById("stylesInput").value = tpl.styles;
+      if (tpl.header) document.getElementById("headerInput").value = tpl.header;
+      if (tpl.row) document.getElementById("rowInput").value = tpl.row;
+      if (tpl.summary) document.getElementById("summaryInput").value = tpl.summary;
+      if (tpl.footer) document.getElementById("footerInput").value = tpl.footer;
+      alert('서식 불러오기 완료!');
+    } catch (err) {
+      alert('JSON 파일 파싱 오류: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 </script>
 </body>
