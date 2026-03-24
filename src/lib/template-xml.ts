@@ -535,8 +535,12 @@ export function buildXlsxFromSections(params: {
   }
   outRow = currentRow;
 
+  // Separate footer entries from data
+  const footerEntries = flatData.filter((e: any) => e.type === "footer");
+  const nonFooterData = flatData.filter((e: any) => e.type !== "footer");
+
   // 2) Data rows
-  for (const entry of flatData) {
+  for (const entry of nonFooterData) {
     const type = entry.type || "row";
 
     if (type === "row") {
@@ -594,9 +598,24 @@ export function buildXlsxFromSections(params: {
     outRow++;
   }
 
-  // 3) Footer rows
+  // 3) Footer rows - replace label from data if available
+  const footerLabel = footerEntries.length > 0 ? (footerEntries[0].label || "") : "";
   for (const row of footerSection.rows) {
-    writeRow(ws, merges, outRow, row, allStyles);
+    if (footerLabel) {
+      // Replace label in footer row cells
+      const modifiedRow = {
+        ...row,
+        cells: row.cells.map((cell: any) => {
+          if (cell.mergeAcross > 0 && cell.value) {
+            return { ...cell, value: footerLabel };
+          }
+          return cell;
+        }),
+      };
+      writeRow(ws, merges, outRow, modifiedRow, allStyles);
+    } else {
+      writeRow(ws, merges, outRow, row, allStyles);
+    }
     if (row.height) rowHeights.push({ r: outRow, hpt: row.height });
     outRow++;
   }
