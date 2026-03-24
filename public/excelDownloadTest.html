@@ -18,12 +18,19 @@ textarea{width:100%;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-s
 .actions{display:flex;gap:.5rem}
 button{padding:.7rem;border:none;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer}
 .primary{background:#2563eb;color:#fff;flex:1}
+.success{background:#16a34a;color:#fff;flex:1}
 .outline{background:#fff;border:1px solid #ccc}
 .msg{text-align:center;padding:2rem;font-size:1.1rem;color:#333}
 .collapsible-btn{width:100%;text-align:left;background:none;border:1px solid #ccc;border-radius:6px;padding:.5rem;font-size:.75rem;font-weight:700;color:#666;cursor:pointer}
 .collapsible-content{display:none;margin-top:.5rem}
 .collapsible-content.open{display:block}
 .section-group{margin-bottom:.5rem}
+.kv-row{display:flex;gap:.5rem;margin-bottom:.4rem;align-items:center}
+.kv-row input{border:1px solid #ccc;border-radius:4px;padding:.4rem;font-size:.8rem}
+.kv-key{width:30%;font-weight:700}
+.kv-val{flex:1}
+.kv-del{background:#ef4444;color:#fff;border:none;border-radius:4px;padding:.3rem .6rem;font-size:.75rem;cursor:pointer}
+.add-btn{background:#f1f3f5;border:1px dashed #adb5bd;border-radius:6px;padding:.4rem;font-size:.75rem;color:#495057;cursor:pointer;width:100%;margin-top:.3rem}
 </style>
 </head>
 <body>
@@ -57,6 +64,7 @@ function loadTemplate(url) {
 // Determine template URL: ?template=xxx.json or default ./template.json
 var urlParams = new URLSearchParams(window.location.search);
 var templateUrl = urlParams.get('template') || './template.json';
+var templateFileName = templateUrl.split('/').pop() || 'template.json';
 
 // ─── XML Parsing Engine ─────────────────────────────────────
 const SS = "urn:schemas-microsoft-com:office:spreadsheet";
@@ -433,8 +441,7 @@ function generateFromJson(jsonStr, fileName, opts) {
   downloadWorkbook(wb, fileName || "output");
 }
 
-// ─── postMessage listener (for POST-like data from other pages/FileMaker) ───
-
+// ─── postMessage listener ───
 window.addEventListener('message', function(event) {
   try {
     var msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
@@ -459,7 +466,7 @@ window.addEventListener('message', function(event) {
         }
       }, 300);
     }
-  } catch (e) { /* ignore non-JSON messages */ }
+  } catch (e) {}
 });
 
 function showOverlay(icon, text, color, autoClose) {
@@ -473,17 +480,13 @@ function showOverlay(icon, text, color, autoClose) {
 }
 
 // ─── URL Auto Download ──────────────────────────────────────
-
 (function() {
   var params = new URLSearchParams(window.location.search);
   var jsonParam = params.get("json");
 
   if (jsonParam) {
     showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
-    // Load template first, then generate
-    loadTemplate(templateUrl).catch(function() {
-      // template.json not found — use whatever defaults exist
-    }).then(function() {
+    loadTemplate(templateUrl).catch(function() {}).then(function() {
       setTimeout(function() {
         try {
           var decoded = decodeURIComponent(jsonParam);
@@ -499,20 +502,82 @@ function showOverlay(icon, text, color, autoClose) {
   }
 
   // ─── Manual UI (no params) ─────────────────────────────────
-  loadTemplate(templateUrl).catch(function() {
-    // template.json not found — fields will be empty
-  }).then(function() {
+  loadTemplate(templateUrl).catch(function() {}).then(function() {
     renderUI();
   });
 })();
 
+// ─── Vars 키-값 UI 관리 ─────────────────────────────────────
+
+var varsData = []; // [{key:'', value:''}]
+
+function parseVarsFromTemplate() {
+  // Header XML에서 {{키}} 패턴 추출
+  varsData = [];
+  var matches = DEFAULT_HEADER_XML.match(/\{\{([^}]+)\}\}/g);
+  if (matches) {
+    var seen = {};
+    for (var i = 0; i < matches.length; i++) {
+      var key = matches[i].replace(/\{\{|\}\}/g, '');
+      if (!seen[key]) {
+        seen[key] = true;
+        varsData.push({ key: key, value: '' });
+      }
+    }
+  }
+  if (varsData.length === 0) {
+    varsData.push({ key: '', value: '' });
+  }
+}
+
+function renderVarsUI() {
+  var html = '';
+  for (var i = 0; i < varsData.length; i++) {
+    html += '<div class="kv-row">' +
+      '<input class="kv-key" placeholder="키 (예: 경찰서)" value="' + escAttr(varsData[i].key) + '" onchange="varsData[' + i + '].key=this.value"/>' +
+      '<input class="kv-val" placeholder="값" value="' + escAttr(varsData[i].value) + '" onchange="varsData[' + i + '].value=this.value"/>' +
+      '<button class="kv-del" onclick="removeVar(' + i + ')">✕</button>' +
+      '</div>';
+  }
+  html += '<button class="add-btn" onclick="addVar()">+ 변수 추가</button>';
+  return html;
+}
+
+function addVar() {
+  varsData.push({ key: '', value: '' });
+  document.getElementById('vars-container').innerHTML = renderVarsUI();
+}
+
+function removeVar(idx) {
+  varsData.splice(idx, 1);
+  if (varsData.length === 0) varsData.push({ key: '', value: '' });
+  document.getElementById('vars-container').innerHTML = renderVarsUI();
+}
+
+function getVarsObject() {
+  var obj = {};
+  for (var i = 0; i < varsData.length; i++) {
+    if (varsData[i].key.trim()) {
+      obj[varsData[i].key.trim()] = varsData[i].value;
+    }
+  }
+  return obj;
+}
+
+function escAttr(s) {
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── UI Render ──────────────────────────────────────────────
+
 function renderUI() {
   var esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  parseVarsFromTemplate();
 
   document.getElementById("app").innerHTML =
     '<h1>서식 보존 엑셀 생성</h1>' +
     '<p class="subtitle">XML 서식 + JSON → Excel (.xlsx)</p>' +
-    '<p class="subtitle" style="color:#2563eb;font-size:.75rem">서식은 <code>template.json</code> 파일에서 로드됩니다. ' +
+    '<p class="subtitle" style="color:#2563eb;font-size:.75rem">서식 파일: <code>' + esc(templateFileName) + '</code> ' +
     (templateLoaded ? '✅ 로드 완료' : '⚠️ 파일 없음 (수동 입력)') + '</p>' +
 
     // Template sections card
@@ -527,7 +592,7 @@ function renderUI() {
     '</div></div>' +
 
     '<label>Header</label>' +
-    '<textarea id="headerInput" rows="8">' + esc(DEFAULT_HEADER_XML) + '</textarea>' +
+    '<textarea id="headerInput" rows="8" oninput="onHeaderChange()">' + esc(DEFAULT_HEADER_XML) + '</textarea>' +
 
     '<label>Row (데이터 행 템플릿)</label>' +
     '<textarea id="rowInput" rows="5">' + esc(DEFAULT_ROW_XML) + '</textarea>' +
@@ -537,24 +602,32 @@ function renderUI() {
 
     '<label>Footer</label>' +
     '<textarea id="footerInput" rows="5">' + esc(DEFAULT_FOOTER_XML) + '</textarea>' +
+
+    '<div style="margin-top:.8rem" class="actions">' +
+    '<button class="success" onclick="saveTemplate()">💾 서식 저장 (' + esc(templateFileName) + ')</button>' +
+    '</div>' +
     '</div>' +
 
     // Template file management
     '<div class="card">' +
     '<h2>서식 파일 관리</h2>' +
     '<div class="actions" style="margin-bottom:.5rem">' +
-    '<button class="outline" style="flex:1" onclick="exportTemplate()">📤 서식 JSON 내보내기</button>' +
     '<button class="outline" style="flex:1" onclick="document.getElementById(\'tplFileInput\').click()">📥 서식 JSON 불러오기</button>' +
     '<input type="file" id="tplFileInput" accept=".json" style="display:none" onchange="importTemplate(this)">' +
     '</div>' +
-    '<p style="font-size:.7rem;color:#888">내보낸 JSON 파일을 서버에 <code>template.json</code>으로 저장하면 기본 서식으로 사용됩니다.</p>' +
     '</div>' +
 
-    // JSON data card
+    // JSON data card - split into vars + data
     '<div class="card">' +
-    '<h2>데이터 입력 (JSON)</h2>' +
-    '<p style="font-size:.75rem;color:#888;margin-bottom:.5rem"><code>{ "vars": {...}, "data": [[...]] }</code> 형식 — <code>vars</code>의 키가 Header XML 내 <code>{{키}}</code>를 대치합니다.</p>' +
-    '<textarea id="jsonInput" rows="12">' + esc(DEFAULT_JSON) + '</textarea>' +
+    '<h2>데이터 입력</h2>' +
+
+    '<label>헤더 변수 (vars)</label>' +
+    '<p style="font-size:.7rem;color:#888;margin-bottom:.4rem">Header XML의 <code>{{키}}</code>에 대응하는 값을 입력합니다.</p>' +
+    '<div id="vars-container">' + renderVarsUI() + '</div>' +
+
+    '<label>데이터 (data)</label>' +
+    '<p style="font-size:.7rem;color:#888;margin-bottom:.4rem">행/요약 데이터 배열. <code>type: "row"</code> 또는 <code>type: "summary"</code></p>' +
+    '<textarea id="dataInput" rows="10">[]</textarea>' +
     '</div>' +
 
     // postMessage usage guide
@@ -586,6 +659,31 @@ function renderUI() {
     '</div>';
 }
 
+function onHeaderChange() {
+  // Header 변경 시 vars 키 자동 감지 업데이트
+  var headerXml = document.getElementById('headerInput').value;
+  var matches = headerXml.match(/\{\{([^}]+)\}\}/g);
+  var newKeys = [];
+  if (matches) {
+    var seen = {};
+    for (var i = 0; i < matches.length; i++) {
+      var key = matches[i].replace(/\{\{|\}\}/g, '');
+      if (!seen[key]) { seen[key] = true; newKeys.push(key); }
+    }
+  }
+  // 기존 값 보존하면서 키 목록 업데이트
+  var oldMap = {};
+  for (var j = 0; j < varsData.length; j++) {
+    if (varsData[j].key) oldMap[varsData[j].key] = varsData[j].value;
+  }
+  varsData = [];
+  for (var k = 0; k < newKeys.length; k++) {
+    varsData.push({ key: newKeys[k], value: oldMap[newKeys[k]] || '' });
+  }
+  if (varsData.length === 0) varsData.push({ key: '', value: '' });
+  document.getElementById('vars-container').innerHTML = renderVarsUI();
+}
+
 function toggleSection(id) {
   var el = document.getElementById(id + '-section');
   var btn = el.previousElementSibling || el.parentElement.querySelector('.collapsible-btn');
@@ -600,7 +698,10 @@ function toggleSection(id) {
 
 function handleGenerate() {
   try {
-    var json = document.getElementById("jsonInput").value;
+    var vars = getVarsObject();
+    var dataStr = document.getElementById("dataInput").value.trim();
+    var data = dataStr ? JSON.parse(dataStr) : [];
+    var fullJson = JSON.stringify({ vars: vars, data: data });
     var opts = {
       stylesXml: document.getElementById("stylesInput").value,
       headerXml: document.getElementById("headerInput").value,
@@ -608,7 +709,7 @@ function handleGenerate() {
       summaryXml: document.getElementById("summaryInput").value,
       footerXml: document.getElementById("footerInput").value
     };
-    generateFromJson(json, "output", opts);
+    generateFromJson(fullJson, "output", opts);
   } catch (err) {
     alert("오류: " + (err.message || err));
   }
@@ -620,7 +721,7 @@ function handleReset() {
   });
 }
 
-function exportTemplate() {
+function saveTemplate() {
   var tpl = {
     styles: document.getElementById("stylesInput").value,
     header: document.getElementById("headerInput").value,
@@ -631,9 +732,10 @@ function exportTemplate() {
   var blob = new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'template.json';
+  a.download = templateFileName;
   a.click();
   URL.revokeObjectURL(a.href);
+  alert('서식 파일 "' + templateFileName + '" 다운로드 완료!\n서버에 업로드하면 적용됩니다.');
 }
 
 function importTemplate(input) {
@@ -648,6 +750,7 @@ function importTemplate(input) {
       if (tpl.row) document.getElementById("rowInput").value = tpl.row;
       if (tpl.summary) document.getElementById("summaryInput").value = tpl.summary;
       if (tpl.footer) document.getElementById("footerInput").value = tpl.footer;
+      onHeaderChange();
       alert('서식 불러오기 완료!');
     } catch (err) {
       alert('JSON 파일 파싱 오류: ' + err.message);
