@@ -50,10 +50,14 @@ const PdfToExcelConverter = () => {
 
   const generateFromJson = useCallback((json: string, fileName = "output") => {
     const parsed = JSON.parse(json);
-    let jsonData: any[];
+    let jsonData: any[] = [];
     let templateVars: Record<string, string> = {};
+    let sheets: Array<{ name: string; vars?: Record<string, string>; data: any[] }> | undefined;
 
-    if (parsed && !Array.isArray(parsed) && parsed.data) {
+    if (parsed && !Array.isArray(parsed) && parsed.sheets) {
+      // Multi-sheet mode
+      sheets = parsed.sheets;
+    } else if (parsed && !Array.isArray(parsed) && parsed.data) {
       templateVars = parsed.vars || {};
       jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
     } else {
@@ -68,6 +72,7 @@ const PdfToExcelConverter = () => {
       footerXml,
       jsonData,
       templateVars,
+      sheets,
     });
     downloadWorkbook(wb, fileName);
   }, [stylesXml, headerXml, rowXml, summaryXml, footerXml]);
