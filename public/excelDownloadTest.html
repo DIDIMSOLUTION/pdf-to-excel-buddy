@@ -455,8 +455,12 @@ function generateFromJson(jsonStr, fileName, opts) {
   var footerXml = opts.footerXml || DEFAULT_FOOTER_XML;
 
   var parsed = JSON.parse(jsonStr);
-  var jsonData, templateVars = {};
-  if (parsed && !Array.isArray(parsed) && parsed.data) {
+  var jsonData = [], templateVars = {}, sheets;
+
+  if (parsed && !Array.isArray(parsed) && parsed.sheets) {
+    // Multi-sheet mode
+    sheets = parsed.sheets;
+  } else if (parsed && !Array.isArray(parsed) && parsed.data) {
     templateVars = parsed.vars || {};
     jsonData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
   } else {
@@ -469,7 +473,8 @@ function generateFromJson(jsonStr, fileName, opts) {
     summaryXml: summaryXml,
     footerXml: footerXml,
     jsonData: jsonData,
-    templateVars: templateVars
+    templateVars: templateVars,
+    sheets: sheets
   });
   downloadWorkbook(wb, fileName || "output");
 }
