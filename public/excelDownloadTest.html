@@ -475,7 +475,15 @@ function generateFromJson(jsonStr, fileName, opts) {
   var summaryXml = opts.summaryXml || DEFAULT_SUMMARY_XML;
   var footerXml = opts.footerXml || DEFAULT_FOOTER_XML;
 
-  var parsed = JSON.parse(jsonStr);
+  // 방어적 파싱: 이미 객체면 그대로 사용
+  var parsed;
+  if (typeof jsonStr === 'string') {
+    parsed = JSON.parse(jsonStr);
+  } else if (typeof jsonStr === 'object' && jsonStr !== null) {
+    parsed = jsonStr;
+  } else {
+    throw new Error("잘못된 JSON 입력: " + typeof jsonStr);
+  }
   var jsonData = [], templateVars = {}, sheets;
 
   if (parsed && !Array.isArray(parsed) && parsed.sheets) {
