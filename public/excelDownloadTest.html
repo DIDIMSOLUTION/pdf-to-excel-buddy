@@ -514,6 +514,10 @@ window.generateExcel = function(jsonStr, fileName) {
   showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
   setTimeout(function() {
     try {
+      if (!templateLoaded) {
+        showOverlay('⚠️', 'template.json이 아직 로드되지 않았습니다. 파일 경로를 확인하세요.', '#c62828');
+        return;
+      }
       generateFromJson(jsonStr, fileName || 'output');
       showOverlay('✅', '다운로드 완료! (' + (fileName || 'output') + '.xlsx)', '#2e7d32', true);
     } catch (err) {
