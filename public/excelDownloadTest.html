@@ -67,7 +67,7 @@ var templateUrl = urlParams.get('template') || './template.json';
 var templateFileName = templateUrl.split('/').pop() || 'template.json';
 
 // ─── XML Parsing Engine ─────────────────────────────────────
-const SS = "urn:schemas-microsoft-com:office:spreadsheet";
+var SS = "urn:schemas-microsoft-com:office:spreadsheet";
 
 function getAttr(el, ns, name) {
   return el.getAttributeNS(ns, name) || el.getAttribute("ss:" + name) || null;
@@ -475,7 +475,15 @@ function generateFromJson(jsonStr, fileName, opts) {
   var summaryXml = opts.summaryXml || DEFAULT_SUMMARY_XML;
   var footerXml = opts.footerXml || DEFAULT_FOOTER_XML;
 
-  var parsed = JSON.parse(jsonStr);
+  // 방어적 파싱: 이미 객체면 그대로 사용
+  var parsed;
+  if (typeof jsonStr === 'string') {
+    parsed = JSON.parse(jsonStr);
+  } else if (typeof jsonStr === 'object' && jsonStr !== null) {
+    parsed = jsonStr;
+  } else {
+    throw new Error("잘못된 JSON 입력: " + typeof jsonStr);
+  }
   var jsonData = [], templateVars = {}, sheets;
 
   if (parsed && !Array.isArray(parsed) && parsed.sheets) {
@@ -502,22 +510,42 @@ function generateFromJson(jsonStr, fileName, opts) {
 
 // ─── Global function for FileMaker WebViewer ───
 // FileMaker에서: Perform JavaScript In Web Viewer ["webViewer"; "generateExcel"; $json; $filename]
+// 템플릿 로드 대기 후 실행하는 헬퍼
+function waitForTemplateAndRun(fn) {
+  if (templateLoaded) {
+    fn();
+  } else {
+    // 템플릿이 아직 로드 중이면 최대 5초 대기
+    var waited = 0;
+    var interval = setInterval(function() {
+      waited += 200;
+      if (templateLoaded) {
+        clearInterval(interval);
+        fn();
+      } else if (waited >= 5000) {
+        clearInterval(interval);
+        showOverlay('⚠️', 'template.json 로드 실패. 파일 경로를 확인하세요.', '#c62828');
+      }
+    }, 200);
+  }
+}
+
 window.generateExcel = function(jsonStr, fileName) {
   showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
-  setTimeout(function() {
+  waitForTemplateAndRun(function() {
     try {
       generateFromJson(jsonStr, fileName || 'output');
       showOverlay('✅', '다운로드 완료! (' + (fileName || 'output') + '.xlsx)', '#2e7d32', true);
     } catch (err) {
       showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
     }
-  }, 300);
+  });
 };
 
 // ─── Global function with template override ───
 window.generateExcelWithTemplate = function(jsonStr, fileName, templateJsonStr) {
   showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
-  setTimeout(function() {
+  waitForTemplateAndRun(function() {
     try {
       var opts = {};
       if (templateJsonStr) {
@@ -533,7 +561,7 @@ window.generateExcelWithTemplate = function(jsonStr, fileName, templateJsonStr) 
     } catch (err) {
       showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
     }
-  }, 300);
+  });
 };
 
 // ─── postMessage listener ───
