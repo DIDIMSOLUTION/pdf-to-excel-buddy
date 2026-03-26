@@ -510,20 +510,36 @@ function generateFromJson(jsonStr, fileName, opts) {
 
 // ─── Global function for FileMaker WebViewer ───
 // FileMaker에서: Perform JavaScript In Web Viewer ["webViewer"; "generateExcel"; $json; $filename]
+// 템플릿 로드 대기 후 실행하는 헬퍼
+function waitForTemplateAndRun(fn) {
+  if (templateLoaded) {
+    fn();
+  } else {
+    // 템플릿이 아직 로드 중이면 최대 5초 대기
+    var waited = 0;
+    var interval = setInterval(function() {
+      waited += 200;
+      if (templateLoaded) {
+        clearInterval(interval);
+        fn();
+      } else if (waited >= 5000) {
+        clearInterval(interval);
+        showOverlay('⚠️', 'template.json 로드 실패. 파일 경로를 확인하세요.', '#c62828');
+      }
+    }, 200);
+  }
+}
+
 window.generateExcel = function(jsonStr, fileName) {
   showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
-  setTimeout(function() {
+  waitForTemplateAndRun(function() {
     try {
-      if (!templateLoaded) {
-        showOverlay('⚠️', 'template.json이 아직 로드되지 않았습니다. 파일 경로를 확인하세요.', '#c62828');
-        return;
-      }
       generateFromJson(jsonStr, fileName || 'output');
       showOverlay('✅', '다운로드 완료! (' + (fileName || 'output') + '.xlsx)', '#2e7d32', true);
     } catch (err) {
       showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
     }
-  }, 300);
+  });
 };
 
 // ─── Global function with template override ───
