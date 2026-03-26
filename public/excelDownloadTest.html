@@ -67,7 +67,7 @@ var templateUrl = urlParams.get('template') || './template.json';
 var templateFileName = templateUrl.split('/').pop() || 'template.json';
 
 // ─── XML Parsing Engine ─────────────────────────────────────
-const SS = "urn:schemas-microsoft-com:office:spreadsheet";
+var SS = "urn:schemas-microsoft-com:office:spreadsheet";
 
 function getAttr(el, ns, name) {
   return el.getAttributeNS(ns, name) || el.getAttribute("ss:" + name) || null;
