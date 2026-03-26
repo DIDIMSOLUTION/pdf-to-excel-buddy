@@ -545,7 +545,7 @@ window.generateExcel = function(jsonStr, fileName) {
 // ─── Global function with template override ───
 window.generateExcelWithTemplate = function(jsonStr, fileName, templateJsonStr) {
   showOverlay('⏳', '엑셀 파일을 생성 중입니다...', '#333');
-  setTimeout(function() {
+  waitForTemplateAndRun(function() {
     try {
       var opts = {};
       if (templateJsonStr) {
@@ -561,7 +561,7 @@ window.generateExcelWithTemplate = function(jsonStr, fileName, templateJsonStr) 
     } catch (err) {
       showOverlay('❌', '오류: ' + (err.message || err), '#c62828');
     }
-  }, 300);
+  });
 };
 
 // ─── postMessage listener ───
